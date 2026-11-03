@@ -1,0 +1,42 @@
+{
+  "name": "sellme",
+  "version": "0.1.0",
+  "description": "Your AI agent, pitching you to every AI recruiter. Runs as a skill inside the AI coding tool you already use.",
+  "type": "module",
+  "bin": {
+    "sellme": "bin/sellme.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "skill",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "keywords": [
+    "ai-agent",
+    "agent-skill",
+    "claude-code",
+    "codex",
+    "cursor",
+    "opencode",
+    "job-search",
+    "recruiting"
+  ],
+  "author": "Rotem Lanyado",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lanyado/sellme.git"
+  },
+  "homepage": "https://github.com/lanyado/sellme#readme",
+  "bugs": {
+    "url": "https://github.com/lanyado/sellme/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
