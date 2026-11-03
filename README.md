@@ -66,7 +66,7 @@ It only reads what a job needs, and it won't share any of this with recruiters w
 
 ## Auto-approve
 
-Tired of approving answers to one bot? `sellme auto Fonzi` lets Sellme answer that agent without asking, or just tell your AI "answer Fonzi yourself." It's off until you turn it on, one agent at a time. `sellme auto Fonzi off` stops it.
+Tired of approving answers to one bot? `sellme auto Fonzi` lets Sellme answer that agent without asking, or just tell your AI "answer Fonzi yourself." It's off until you turn it on, one agent at a time. `sellme auto Fonzi off` stops it, and takes back anything it approved but hasn't sent.
 
 It only covers answers that pass the truth check, up to 10 a day per agent. Pay, offers, scheduling and blocked answers still come to you, and everything it sends shows up on your next screen.
 
@@ -91,6 +91,8 @@ Your profile, facts and pipeline stay in `~/.sellme`, readable only by your user
 
 Remove it with `npx sellme uninstall`. Add `--purge` to delete your data too.
 
+See [SECURITY.md](SECURITY.md) for what the code does and doesn't do, its limits, and how to report a problem.
+
 ## How Sellme makes money
 
 Referral fees. Sellme is free because it signs you up with recruiter agents through its own referral links. If you're hired through one, that agent may pay Sellme. You pay nothing.
@@ -98,6 +100,10 @@ Referral fees. Sellme is free because it signs you up with recruiter agents thro
 This is on by default, and there's no setting for it. It's open source, so to change it, edit `lib/referrals.js`. It only applies to new signups, it never ranks agents by what they pay, and it never asks you to leave an account you already have.
 
 Setup signs you up with every recruiter agent unless you tell it to skip one. It opens each page and fills in what it can. You set the password, accept the terms and press the final button yourself.
+
+## Develop
+
+There are no dependencies to install. Run the tests with `npm test`, on Node 18 or newer. They use throwaway folders and never touch your `~/.sellme`.
 
 ## License
 

@@ -239,3 +239,92 @@ test("changing an agent's address turns auto-approve off", () => {
   core.addAgent(s, "Standout", { handle: "+15559999" });
   assert.equal(core.findAgent(s, "Standout").auto, false);
 });
+
+test("found in review: changing an agent's channel turns auto-approve off too", () => {
+  const s = auto();
+  core.addAgent(s, "Fonzi", { channel: "browser" });
+  assert.equal(core.findAgent(s, "Fonzi").auto, false);
+});
+
+test("found in review: a new address takes back approvals made for the old one", () => {
+  const s = state();
+  const q = ok(s);
+  core.approve(s, q.id);
+  core.addAgent(s, "Standout", { handle: "+15559999" });
+  assert.deepEqual(core.outbox(s), []);
+  assert.equal(q.status, "pending");
+  assert.equal(q.to, "+15559999");
+  core.approve(s, q.id);
+  assert.equal(core.outbox(s)[0].to, "+15559999");
+});
+
+test("found in review: scheduling can't go out on auto-approve under another label", () => {
+  const s = auto();
+  for (const d of [
+    { asked: "When can she talk?", text: "Maya can do it at 4 PM.", sources: ["f1"] },
+    { asked: "Are you free Tuesday?", text: "Yes.", sources: ["f1"] },
+    { text: "Maya has availability next week.", kind: "nudge" },
+    { text: "Does Nov 12 work?", kind: "nudge" },
+  ]) {
+    const q = core.addDraft(s, { agent: "Fonzi", ...d });
+    assert.equal(q.status, "pending", d.text);
+    assert.ok(q.check.reasons.some((r) => r.code === "scheduling"), d.text);
+  }
+  assert.deepEqual(core.outbox(s), []);
+});
+
+test("the scheduling rule only applies to auto-approve", () => {
+  const q = core.addDraft(state(), { agent: "Fonzi", text: "Does Nov 12 work?", kind: "nudge" });
+  assert.equal(q.status, "pending");
+  assert.ok(!q.check.reasons.some((r) => r.code === "scheduling"));
+});
+
+test("found in review: turning auto-approve off takes back what it hasn't sent", () => {
+  const s = auto();
+  const q = core.addDraft(s, { agent: "Fonzi", asked: "NYC?", text: "Yes. NYC or remote.", sources: ["profile.where"] });
+  assert.equal(core.outbox(s).length, 1);
+  core.setAuto(s, "Fonzi", false);
+  assert.deepEqual(core.outbox(s), []);
+  assert.equal(q.status, "pending");
+  assert.equal(q.auto, false);
+  assert.throws(() => core.markSent(s, q.id), /isn’t approved/);
+});
+
+test("turning auto-approve off leaves what the user approved themselves", () => {
+  const s = state();
+  const q = core.addDraft(s, { agent: "Fonzi", asked: "NYC?", text: "Yes. NYC or remote.", sources: ["profile.where"] });
+  core.approve(s, q.id);
+  core.setAuto(s, "Fonzi", false);
+  assert.equal(core.outbox(s).length, 1);
+});
+
+test("found in review: removing an agent cancels everything still waiting for it", () => {
+  const s = state();
+  const approved = ok(s);
+  core.approve(s, approved.id);
+  const waiting = ok(s);
+  assert.equal(core.removeAgent(s, "Standout").cancelled, 2);
+  assert.deepEqual(core.outbox(s), []);
+  assert.deepEqual(core.openItems(s), []);
+  assert.equal(approved.status, "skipped");
+  assert.equal(waiting.status, "skipped");
+});
+
+test("found in review: hired closes the live role, not an old rejection", () => {
+  const s = state();
+  core.addRole(s, { company: "Globex", stage: "rejected" });
+  core.addRole(s, { company: "Globex", title: "Staff", stage: "offer" });
+  core.hired(s, "Globex");
+  assert.deepEqual(s.roles.map((r) => r.stage), ["rejected", "hired"]);
+});
+
+test("found in review: a role's agent is stored as connected, so case doesn't fake another channel", () => {
+  const s = state();
+  core.addRole(s, { company: "Acme", agent: "fonzi", stage: "talking" });
+  const q = core.addDraft(s, { agent: "Fonzi", text: "Any update?", kind: "nudge", company: "Acme" });
+  assert.ok(!q.check.reasons.some((r) => r.code === "other_channel"));
+});
+
+test("a missing id gets a useful error", () => {
+  assert.throws(() => core.skip(state(), undefined), /Which draft\?/);
+});

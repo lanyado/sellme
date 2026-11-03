@@ -176,6 +176,108 @@ test("found on real data: a company inside another name isn't the same company",
   assert.equal(check(s, { text: "Any update on the Anthropic role?", kind: "nudge", company: "Anthropic" }).result, "ok");
 });
 
+test("found in review: denying being an AI is blocked, even when it says 'AI'", () => {
+  for (const text of ["No, I'm not a bot.", "I am not an AI.", "I’m definitely not a bot at all.", "I'm not an AI agent.", "This isn’t a bot.", "It's not an AI assistant.", "Real person, not a bot.", "No bots here.", "Real human here.", "I'm absolutely human."]) {
+    const v = check(state(), { text, asked: "Are you a bot?", kind: "disclosure" });
+    assert.equal(v.result, "blocked", text);
+    assert.ok(codes(v).includes("claims_human"), text);
+  }
+});
+
+test("found in review: mentioning AI isn't admitting to being one", () => {
+  for (const text of ["I build AI products.", "Yes, AI is a big part of the role."]) {
+    assert.ok(codes(check(state(), { text, asked: "Are you a bot?", kind: "disclosure" })).includes("must_disclose"), text);
+  }
+});
+
+test("honest answers to a who-are-you question still pass", () => {
+  for (const text of ["I'm an AI.", "Yes, I'm a bot. Maya approves every message.", "I’m Maya’s AI agent, not a human.", "Yes, a bot.", "I'm not human. I'm Maya's AI agent.", "Maya is a real person, and I'm her AI assistant."]) {
+    assert.equal(check(state(), { text, asked: "Are you a bot?", kind: "disclosure" }).result, "ok", text);
+  }
+});
+
+test("talking about AI work isn't a denial", () => {
+  assert.equal(check(state(), { text: "It's not an AI role, is it?", kind: "nudge" }).result, "ok");
+});
+
+for (const asked of ["Are you actually a person?", "Are you really human?", "Human or bot?", "Bot or human?", "Is this automated?", "Is this a real person?", "Am I chatting to a bot?", "Is a human reading this?", "Is this Dana Lee?"]) {
+  test(`found in review: recognizes ${asked}`, () => {
+    assert.ok(isHumanQuestion(asked));
+    assert.ok(codes(check(state(), { text: "Yes, happy to help.", asked, kind: "nudge" })).includes("must_disclose"));
+  });
+}
+
+for (const asked of ["Is this correct?", "Is this okay?", "Is this remote?", "Are you available Tuesday?", "Are you open to NYC?"]) {
+  test(`found in review: an ordinary question isn't a who-are-you one: ${asked}`, () => {
+    assert.ok(!isHumanQuestion(asked));
+  });
+}
+
+test("found in review: every way of writing a number counts", () => {
+  for (const [text, want] of [
+    ["sixteen engineers", ["16"]],
+    ["a team of nine", ["9"]],
+    ["two years", ["2"]],
+    ["twenty-five people", ["25"]],
+    ["two hundred and ten users", ["210"]],
+    ["a million users", ["1000000"]],
+    ["five million users", ["5000000"]],
+    ["$2 million", ["2000000"]],
+    ["$2M", ["2000000"]],
+    ["1.5k", ["1500"]],
+    ["$3B", ["3000000000"]],
+    ["10yrs", ["10"]],
+    ["6mo", ["6"]],
+    ["10x", ["10x"]],
+    ["5 percent", ["5%"]],
+    ["hundreds of engineers", ["hundreds"]],
+  ]) {
+    assert.deepEqual(numbers(text), want, text);
+  }
+});
+
+test("found in review: spelled-out and stuck-on numbers can't dodge the source check", () => {
+  for (const text of ["Maya managed sixteen people.", "Maya has 10yrs of Kafka.", "Maya is a 10x engineer.", "Maya has two years of Kafka.", "Maya saved a million dollars.", "Maya led hundreds of engineers."]) {
+    const v = check(state(), { text, asked: "Experience?", sources: ["f1"] });
+    assert.ok(codes(v).includes("unsourced_number"), text);
+  }
+});
+
+test("found in review: the same number written another way still matches its source", () => {
+  assert.equal(check(state(), { text: "Maya led a team of six engineers.", asked: "Team?", sources: ["f1"] }).result, "ok");
+  assert.equal(check(state(), { text: "Maya has twelve years in backend systems.", asked: "Years?", sources: ["f2"] }).result, "ok");
+  assert.equal(check(state(), { text: "Maya has 12yrs in backend systems.", asked: "Years?", sources: ["f2"] }).result, "ok");
+});
+
+test("found in review: 'one' in plain English and tech names aren't claims", () => {
+  for (const text of ["no one", "one of the best", "one-on-one", "AWS S3", "B2B SaaS", "K8s", "EC2", "Web3", "Q3"]) {
+    assert.deepEqual(numbers(text), [], text);
+  }
+});
+
+test("the length of a call is logistics", () => {
+  assert.equal(check(state(), { text: "Thu 4 PM for a 30-minute call works.", kind: "slot" }).result, "ok");
+  assert.equal(check(state(), { text: "A 45 min interview is fine.", kind: "slot" }).result, "ok");
+  assert.equal(check(state(), { text: "Four o'clock works.", kind: "slot" }).result, "ok");
+});
+
+test("found on real data: minutes saved are a claim, not logistics", () => {
+  assert.deepEqual(numbers("saving ~20 minutes per user"), ["20"]);
+  assert.deepEqual(numbers("from ~20 min to ~1 min"), ["20", "1"]);
+  assert.ok(codes(check(state(), { text: "Maya saved 200 minutes per user.", asked: "Impact?", sources: ["f1"] })).includes("unsourced_number"));
+});
+
+test("found in review: pay talk is caught without a dollar sign or the word salary", () => {
+  for (const text of ["Maya is expecting 250k.", "Maya wants RSUs.", "What's the TC?", "Maya wants a signing package.", "What's the hourly rate?"]) {
+    assert.ok(codes(check(state(), { text, kind: "nudge" })).includes("pay_or_offer"), text);
+  }
+});
+
+test("a floor spelled out in words is still the floor", () => {
+  const v = check(state(), { text: "Maya needs one hundred eighty thousand.", asked: "Range?", sources: ["profile.floor"] });
+  assert.ok(codes(v).includes("floor"));
+});
+
 test("logistics pass without a source", () => {
   assert.equal(check(state(), { text: "Thu 4 PM works.", kind: "slot" }).result, "ok");
 });
