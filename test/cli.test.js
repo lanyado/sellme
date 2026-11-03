@@ -371,6 +371,102 @@ test("non-interactive review only lists, it never approves", () => {
   assert.equal(JSON.parse(shim("review", "--json").stdout)[0].status, "pending");
 });
 
+test("found in review: --flag=value works the same as --flag value", () => {
+  const { run, shim } = sandbox([".claude"]);
+  run();
+  shim("agent", "add", "Fonzi");
+  const r = shim("note", "--agent=Fonzi", "--text=New match: a=b");
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /New match: a=b/);
+});
+
+test("found in review: a misspelled flag is an error with a suggestion, not silence", () => {
+  const { run, shim } = sandbox([".claude"]);
+  run();
+  const r = shim("fact", "add", "Led 6", "--sorce", "resume");
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /I don’t know --sorce\. Did you mean --source\?/);
+});
+
+test("found in review: terminal escape codes and bidi marks from a recruiter never reach the screen", () => {
+  const { dir, run, shim } = sandbox([".claude"]);
+  run();
+  shim("agent", "add", "Fonzi");
+  shim("note", "--agent", "Fonzi", "--text", "Hello\x1b[2J\x1b]0;owned\x07 there‮!");
+  const state = JSON.parse(fs.readFileSync(path.join(dir, ".sellme/state.json"), "utf8"));
+  assert.equal(state.notes[0].text, "Hello[2J]0;owned there!");
+  shim("alert", "--text", "line one\nline two");
+  assert.match(shim("brief").stdout, /line one\nline two/);
+});
+
+test("found in review: purge deletes only Sellme's files, wherever SELLME_HOME points", () => {
+  const { dir } = sandbox([".claude"]);
+  const shared = path.join(dir, "shared");
+  fs.mkdirSync(shared);
+  fs.writeFileSync(path.join(shared, "thesis.txt"), "mine");
+  const env = { ...process.env, HOME: dir, NO_COLOR: "1", SELLME_HOME: shared };
+  const run = (...args) => spawnSync("node", [BIN, ...args], { env, encoding: "utf8" });
+  run("install");
+  run("fact", "add", "Led 6", "--source", "resume");
+  assert.ok(fs.existsSync(path.join(shared, "state.json")));
+  const r = run("uninstall", "--purge");
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /left 1 other item/);
+  assert.deepEqual(fs.readdirSync(shared), ["thesis.txt"]);
+});
+
+test("found in review: the skill and helper work from a home folder with a space in it", () => {
+  const { dir } = sandbox([]);
+  const spaced = path.join(dir, "First Last");
+  fs.mkdirSync(path.join(spaced, ".claude"), { recursive: true });
+  const env = { ...process.env, HOME: spaced, NO_COLOR: "1" };
+  delete env.SELLME_HOME;
+  delete env.CODEX_HOME;
+  assert.equal(spawnSync("node", [BIN], { env, encoding: "utf8" }).status, 0);
+  const skill = fs.readFileSync(path.join(spaced, ".claude/skills/sellme/SKILL.md"), "utf8");
+  const helper = path.join(spaced, ".sellme/bin/sellme");
+  assert.ok(skill.includes(`"${helper}" brief --json --peek`));
+  const r = spawnSync("sh", ["-c", `"${helper}" version`], { env, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test("found in review: the helper finds Node even when the AI tool's PATH doesn't have it", () => {
+  const { dir, run } = sandbox([".claude"]);
+  run();
+  const r = spawnSync(path.join(dir, ".sellme/bin/sellme"), ["version"], { env: { HOME: dir, PATH: "/usr/bin:/bin" }, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test("install says how to reach the helper from a terminal", () => {
+  const { run } = sandbox([".claude"]);
+  assert.match(run().stdout, /export PATH=".*\.sellme\/bin:\$PATH"/);
+});
+
+test("found in review: a state file that isn't an object is never overwritten", () => {
+  const { dir, run, shim } = sandbox([".claude"]);
+  run();
+  const file = path.join(dir, ".sellme/state.json");
+  for (const bad of ["null", "[1,2]", "{oops"]) {
+    fs.writeFileSync(file, bad);
+    const r = shim("fact", "add", "Led 6", "--source", "resume");
+    assert.equal(r.status, 1, bad);
+    assert.match(r.stderr, /Can't read/);
+    assert.equal(fs.readFileSync(file, "utf8"), bad);
+  }
+});
+
+test("found in review: data from a newer Sellme is left alone", () => {
+  const { dir, run, shim } = sandbox([".claude"]);
+  run();
+  const file = path.join(dir, ".sellme/state.json");
+  const newer = JSON.stringify({ version: 99, facts: [] });
+  fs.writeFileSync(file, newer);
+  const r = shim("fact", "add", "Led 6", "--source", "resume");
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /newer Sellme/);
+  assert.equal(fs.readFileSync(file, "utf8"), newer);
+});
+
 test("simultaneous writes don't lose data", async () => {
   const { dir, run } = sandbox([".claude"]);
   run();
