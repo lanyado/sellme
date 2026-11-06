@@ -384,7 +384,7 @@ test("a user adds, lists and removes their own recruiter", () => {
   assert.equal(added.status, 0, added.stderr);
   assert.match(added.stdout, /Sam Rivera is on your list\. I’ll draft replies, and send the ones you approve by imessage\./);
   const list = shim("agents").stdout;
-  assert.match(list, /CATALOG[\s\S]*○ Fonzi[\s\S]*YOUR RECRUITERS[\s\S]*Sam Rivera\s+imessage · \+15550111 · Acme Talent/);
+  assert.match(list, /AGENTS I SELL YOU TO[\s\S]*○ Fonzi[\s\S]*YOUR RECRUITERS[\s\S]*Sam Rivera\s+imessage · \+15550111 · Acme Talent/);
   assert.equal(JSON.parse(shim("agents", "--json").stdout).yours[0].name, "Sam Rivera");
   const typo = shim("add", "Fonzie");
   assert.equal(typo.status, 1);

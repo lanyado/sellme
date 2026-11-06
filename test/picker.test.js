@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
-import { activityRows, flightFrame, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, chatLink, draftLine, flightFrame, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -71,7 +71,7 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].alert, true);
-  assert.equal(summary(freshState()), "Nothing needs you · not checked yet");
+  assert.equal(summary(freshState()), "Nothing needs you. SELLME is selling you · not checked yet");
 });
 
 test("a long list keeps the cursor in view and says what's hidden", () => {
@@ -733,7 +733,7 @@ test("the loading screen names what it read, and none of what it says", () => {
   assert.equal(activityLabel("Bash", { command: "sellme role set r1 --next-call 2026-11-05" }), "Updating your pipeline and calls");
   assert.equal(activityLabel("Skill", {}), null);
   const screen = syncScreen(0, 83, ["Reading iMessage", "Reading Fonzi"], c);
-  assert.match(screen, /Syncing your conversations\s+1:23/);
+  assert.match(screen, /Selling you to every agent\s+1:23/);
   assert.match(screen, /✓ Reading iMessage/);
   assert.match(screen, /Reading Fonzi…/);
   assert.match(screen, /esc to skip/);
@@ -1015,7 +1015,10 @@ test("a resume goes as the file by email, filled in by the gate, and as a link a
   const hook = JSON.parse(gateHook(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "mcp__claude_ai_Gmail__reply", tool_input: { ...base, attachments: [{ content: core.ATTACH_TOKEN }] } }), { run: "r2" }) || "{}");
   assert.ok(hook.hookSpecificOutput);
   const li = core.addDraft(s, { agent: "Alex Kim", text: "Hi Alex, sure.", kind: "nudge" });
-  assert.throws(() => core.attachResume(s, li.id), /profile set resume-link/);
+  core.attachResume(s, li.id);
+  assert.equal(li.attach, "manual", "no link yet: it still sends, and you attach the file in the chat");
+  assert.equal(chatLink(li), "https://www.linkedin.com/in/alex-kim-test/");
+  core.attachResume(s, li.id, false);
   core.setResume(s, { link: "https://drive.google.com/file/d/1aB2/view" });
   core.attachResume(s, li.id);
   assert.equal(li.text, "Hi Alex, sure. My resume: https://drive.google.com/file/d/1aB2/view");
@@ -1051,4 +1054,61 @@ test("the send animation flies the message across, and lands with a check", () =
   assert.equal(strip(flightFrame(9, "Fonzi", c, { done: true })), `  you ${"━".repeat(22)} ✓ Fonzi`);
   assert.equal(first.length, later.length, "it never jumps around");
   assert.equal(strip(flightFrame(23, "Fonzi", c)), first, "it loops while it waits");
+});
+
+test("an answer only the user could give is remembered once it's sent, and a used note is cleared", () => {
+  const s = freshState();
+  core.addAgent(s, "Standout", { channel: "imessage", handle: "+14155550100" });
+  const q = core.addBlock(s, { agent: "Standout", asked: "Are you OK with occasional travel to the Bay Area?", reason: "Your facts say nothing about travel." });
+  core.instruct(s, q.id, "say yes, I can travel sometimes");
+  core.setSuggestion(s, q.id, "Yes, Maya is happy to travel to the Bay Area from time to time.");
+  assert.equal(q.instructions, null, "the note was used, so the next one starts fresh");
+  core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true });
+  core.markSent(s, q.id);
+  assert.equal(q.remembered, true);
+  assert.match(s.facts.at(-1).text, /^Asked “Are you OK with occasional travel to the Bay Area\?”, you said: “Yes, Maya is happy to travel/);
+  assert.match(s.facts.at(-1).source, /^your answer to Standout, \d{4}-\d{2}-\d{2}$/);
+  const slot = core.addBlock(s, { agent: "Standout", asked: "Free Tuesday at 3?", reason: "Your calendar." });
+  core.answerYourself(s, slot.id, "Tuesday at 3 works.", { confirmSensitive: true });
+  core.markSent(s, slot.id);
+  assert.equal(s.facts.length, 1, "times change, so they aren't remembered");
+});
+
+test("a fast send is one exact tool call, and only a send the gate cleared and the tool confirmed counts", async () => {
+  const { fastPlan, confirmSend } = await import("../lib/agent.js");
+  assert.equal(fastPlan({ channel: "imessage", to: "+15550111", text: "Hi." }).tool, "mcp__messages__tool_send_message");
+  assert.deepEqual(fastPlan({ channel: "linkedin", to: "linkedin.com/in/x", text: "Hi." }).input, { linkedin_username: "linkedin.com/in/x", message: "Hi.", confirm_send: true });
+  assert.deepEqual(fastPlan({ channel: "email", person: true, to: "a@b.co", subject: "Maya", text: "Hi.", attach: { filename: "cv.pdf", content: "SELLME_RESUME" } }).input.attachments, [{ filename: "cv.pdf", content: "SELLME_RESUME" }]);
+  assert.equal(fastPlan({ channel: "email", to: "bot@boardy.ai", text: "Hi." }), null, "a bot's email thread goes through the skill");
+  assert.equal(fastPlan({ channel: "browser", text: "Hi." }), null);
+  const s = freshState();
+  s.queue.push({ id: "q1", status: "approved", send_cleared: { run: "r1" } });
+  const update = (fn) => fn(s);
+  confirmSend({ tool_name: "mcp__messages__tool_send_message", tool_response: [{ type: "text", text: "Error: not delivered" }] }, "r1", { update });
+  assert.equal(s.queue[0].send_confirmed, undefined, "an error isn't a send");
+  confirmSend({ tool_name: "mcp__messages__tool_send_message", tool_response: [{ type: "text", text: "Message sent" }] }, "r2", { update });
+  assert.equal(s.queue[0].send_confirmed, undefined, "another run's send doesn't count");
+  confirmSend({ tool_name: "mcp__messages__tool_send_message", tool_response: [{ type: "text", text: "Message sent" }] }, "r1", { update });
+  assert.equal(s.queue[0].send_confirmed.run, "r1");
+});
+
+test("a reply that says the resume is attached still goes on LinkedIn, and you attach it in the chat", () => {
+  const s = freshState();
+  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const q = core.addBlock(s, { agent: "Ben Ford", asked: "Send your resume?", reason: "Submitting you is yours.", suggest: "Yes, please submit me. My resume is attached." });
+  assert.throws(() => core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true }), /attached, but nothing is/);
+  core.attachResume(s, q.id);
+  assert.equal(q.attach, "manual");
+  core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true });
+  assert.deepEqual(core.outbox(s).map((o) => [o.channel, o.attach ?? null]), [["linkedin", null]]);
+});
+
+test("a draft row is a short preview that never wraps, even with a tag", () => {
+  const strip = (t) => t.replace(/\x1b\[[0-9;]*m/g, "");
+  const row = { mark: "?", agent: "Ben Ford", text: "Yes, please go ahead and submit me. My email is maya@example.com, my LinkedIn is linkedin.com/in/maya", flag: "note for the AI" };
+  for (const width of [80, 120, 200]) {
+    const line = strip(draftLine(row, " ", c, width));
+    assert.ok(line.length <= Math.min(width, 120), `${width}: ${line.length}`);
+    assert.match(line, /… · note for the AI$/);
+  }
 });
