@@ -40,15 +40,15 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 
 ## ⚡ What it does every time you open it
 
-| | |
-|---|---|
-| 📥 **Reads everything new** | iMessage, email, LinkedIn and every agent's chat, in the background. Your list is there at once and fills in as it goes. |
-| 💬 **Answers** | What agents and recruiters ask, from your own facts. Sure answers go out by themselves. |
-| 🚀 **Pushes** | Asks every agent for new matches, nudges quiet threads, follows up after calls, says yes to every role that fits. |
-| 📎 **Sends your resume** | The real PDF by email, the moment someone asks. |
-| 🧑‍💼 **Talks to humans too** | Replies to recruiters in your voice, from your own email, iMessage or LinkedIn, in the thread they wrote in. |
-| 🗂️ **Keeps your pipeline** | Matches, booked calls, rejections and next steps, without you typing any of it. |
-| 🧠 **Remembers** | An answer only you could give ("open to travel?") becomes a fact, so it never asks twice. |
+<table>
+<tr><td>📥 <b>Reads everything new</b></td><td>iMessage, email, LinkedIn and every agent's chat, in the background. Your list is there at once and fills in as it goes.</td></tr>
+<tr><td>💬 <b>Answers</b></td><td>What agents and recruiters ask, from your own facts. Sure answers go out by themselves.</td></tr>
+<tr><td>🚀 <b>Pushes</b></td><td>Asks every agent for new matches, nudges quiet threads, follows up after calls, says yes to every role that fits.</td></tr>
+<tr><td>📎 <b>Sends your resume</b></td><td>The real PDF by email, the moment someone asks.</td></tr>
+<tr><td>🧑‍💼 <b>Talks to humans too</b></td><td>Replies to recruiters in your voice, from your own email, iMessage or LinkedIn, in the thread they wrote in.</td></tr>
+<tr><td>🗂️ <b>Keeps your pipeline</b></td><td>Matches, booked calls, rejections and next steps, without you typing any of it.</td></tr>
+<tr><td>🧠 <b>Remembers</b></td><td>An answer only you could give ("open to travel?") becomes a fact, so it never asks twice.</td></tr>
+</table>
 
 ## 🎯 Sure? It sends. Not sure? It asks.
 
