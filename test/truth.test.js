@@ -329,3 +329,29 @@ test("a yes or no pressed in the app backs that answer, but never a number, and 
   assert.equal(t.status, "blocked"); // Only the app's yes or no counts, not the AI saying so.
   assert.throws(() => core.addDraft(s, { agent: "Boardy", asked: "Intro?", text: "Yes.", sources: ["user.choice"] }), /Only the user/);
 });
+
+test("a day in the past books nothing, so a nudge that says 'since Wednesday' can go out by itself", async () => {
+  const { touchesScheduling } = await import("../lib/truth.js");
+  assert.equal(touchesScheduling({ text: "Any new roles since Wednesday?", asked: "No message since Nov 4. Ask for new matches." }), false);
+  assert.equal(touchesScheduling({ text: "Anything new since last week?" }), false);
+  assert.equal(touchesScheduling({ text: "I'm free Wednesday at 2pm." }), true);
+  assert.equal(touchesScheduling({ text: "Since Monday works, can we talk Thursday?" }), true);
+});
+
+test("an open draft to an agent on autopilot is approved when checked again, and one that still needs you says why", async () => {
+  const core = await import("../lib/core.js");
+  const s = state();
+  core.addAgent(s, "Fonzi");
+  const q = core.addDraft(s, { agent: "Fonzi", kind: "nudge", text: "Any new roles for Sam?", sources: [] });
+  const held = core.addDraft(s, { agent: "Fonzi", kind: "nudge", text: "Free Thursday at 2pm?", asked: "a time", sources: [] });
+  const noted = core.addDraft(s, { agent: "Fonzi", kind: "nudge", text: "Anything new for Sam?", asked: "new", sources: [] });
+  noted.instructions = "shorter";
+  s.autopilot = true; // Turned on after these were drafted.
+  core.recheckOpen(s);
+  assert.equal(q.status, "approved");
+  assert.equal(q.auto, true);
+  assert.equal(noted.status, "pending", "a note for the AI holds it");
+  assert.equal(held.status, "pending");
+  assert.ok(held.check.reasons.some((r) => r.code === "scheduling"));
+  assert.equal(core.recheckOpen(s), 0, "a second pass changes nothing");
+});

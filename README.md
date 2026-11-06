@@ -69,7 +69,7 @@ Sellme always admits it's an AI when asked. It never claims to be you, and never
 
 Type `sellme`. Arrow keys, enter, or just click.
 
-- **Drafts**: what needs you. `y` sends, `e` edits, `i` tells the AI what to change. Questions only you can answer come with a suggested reply.
+- **Drafts**: what needs you. One key: `y` sells you, `e` edits, `i` tells the AI how to sell you better. Questions only you can answer come with a suggested reply.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Pipeline**: every role by stage, with its next call. Nudge, follow up, move.
 - **Schedule**: autopilot, and how often to check while you're away (hourly by default).
