@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const RENDER = await import("../lib/render.js");
+const { CATALOG: core_CATALOG } = await import("../lib/catalog.js");
 const BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../bin/sellme.js");
 
 function sandbox(tools = [".claude", ".codex"]) {
@@ -116,6 +117,7 @@ test("a damaged data file is refused, not overwritten", () => {
 test("the deck's whole flow works from setup to invoice", () => {
   const { dir, run, shim } = sandbox([".claude"]);
   run();
+  shim("auto", "all", "off"); // This walks through approving by hand.
   shim("profile", "set", "name", "Maya");
   shim("profile", "set", "roles", "Staff Engineer, Head of AI");
   shim("profile", "set", "floor", "$180K");
@@ -213,7 +215,7 @@ test("found by a live test: people aren't connected like bots, and their leads c
   run();
   const r = shim("draft", "--agent", "Priya", "--text", "Hi", "--kind", "nudge");
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /If it’s a person, don’t/);
+  assert.match(r.stderr, /If it’s a person: add "Priya" --handle/);
   assert.equal(shim("note", "--agent", "Priya", "--text", "Recruiter at Vandelay reached out").status, 0);
   assert.match(shim("notes").stdout, /Priya: Recruiter at Vandelay/);
 });
@@ -243,10 +245,10 @@ test("referral links are disclosed at install and on request, with no switch but
 test("signup lists what isn't connected yet", () => {
   const { run, shim } = sandbox([".claude"]);
   run();
-  assert.equal(JSON.parse(shim("signup", "--json").stdout).programs.length, 5);
+  assert.equal(JSON.parse(shim("signup", "--json").stdout).programs.length, Object.keys(core_CATALOG).length);
   shim("agent", "add", "Fonzi");
   const out = JSON.parse(shim("signup", "--json").stdout);
-  assert.equal(out.programs.length, 4);
+  assert.equal(out.programs.length, Object.keys(core_CATALOG).length - 1);
   assert.ok(!out.programs.some((p) => p.name === "Fonzi"));
   assert.match(out.disclosure, /referral links/);
 });
@@ -256,12 +258,14 @@ test("auto-approve through the real command", () => {
   run();
   shim("agent", "add", "Jack & Jill");
   shim("profile", "set", "where", "NYC");
-  assert.match(shim("auto").stdout, /off for every agent/);
+  assert.match(shim("auto").stdout, /Autopilot is on\.\nI answer by myself: Jack & Jill/, "autopilot is on from the start");
+  assert.match(shim("auto", "all", "off").stdout, /Autopilot off/);
+  assert.match(shim("auto").stdout, /I ask you first: Jack & Jill/);
   assert.match(shim("auto", "Jack", "&", "Jill").stdout, /without asking, up to 10 a day/);
-  assert.match(shim("auto").stdout, /on for: Jack & Jill/);
+  assert.match(shim("auto").stdout, /I answer by myself: Jack & Jill/);
   assert.match(shim("status").stdout, /Jack & Jill.*auto/);
   const d = shim("draft", "--agent", "Jack & Jill", "--asked", "NYC?", "--text", "Yes.", "--source", "profile.where");
-  assert.match(d.stdout, /auto-approved/);
+  assert.match(d.stdout, /go by itself/);
   assert.equal(JSON.parse(shim("outbox", "--json").stdout).length, 1);
   assert.equal(shim("sent", "q1").status, 0);
   assert.match(shim().stdout, /Sent for you: “Yes\.”/);
@@ -300,7 +304,7 @@ test("an unconfigured screen says exactly what's left", () => {
   run();
   const first = shim().stdout;
   assert.match(first, /SETUP {2}0 of 3/);
-  assert.match(first, /→ Type \/sellme setup/);
+  assert.match(first, /→ Type sellme to set up/);
   shim("fact", "add", "x", "--source", "y");
   assert.match(shim().stdout, /SETUP {2}1 of 3/);
 });
@@ -308,6 +312,7 @@ test("an unconfigured screen says exactly what's left", () => {
 test("every screen ends with the next step", () => {
   const { run, shim } = sandbox([".claude"]);
   run();
+  shim("auto", "all", "off"); // This walks through approving by hand.
   for (const [a, b] of [["name", "Maya"], ["roles", "Eng"], ["floor", "$1"], ["where", "NYC"]]) shim("profile", "set", a, b);
   shim("fact", "add", "x", "--source", "y");
   shim("agent", "add", "Fonzi");
@@ -364,11 +369,53 @@ test("the brag card escapes a name instead of breaking", () => {
 test("non-interactive review only lists, it never approves", () => {
   const { run, shim } = sandbox([".claude"]);
   run();
+  shim("auto", "all", "off"); // This walks through approving by hand.
   shim("agent", "add", "Fonzi");
   shim("profile", "set", "where", "NYC");
   shim("draft", "--agent", "Fonzi", "--asked", "NYC?", "--text", "Yes.", "--source", "profile.where");
   assert.match(shim("review").stdout, /They asked/);
   assert.equal(JSON.parse(shim("review", "--json").stdout)[0].status, "pending");
+});
+
+test("a user adds, lists and removes their own recruiter", () => {
+  const { run, shim } = sandbox([".claude"]);
+  run();
+  const added = shim("add", "Sam Rivera", "--handle", "+15550111", "--company", "Acme Talent");
+  assert.equal(added.status, 0, added.stderr);
+  assert.match(added.stdout, /Sam Rivera is on your list\. I’ll draft replies, and send the ones you approve by imessage\./);
+  const list = shim("agents").stdout;
+  assert.match(list, /CATALOG[\s\S]*○ Fonzi[\s\S]*YOUR RECRUITERS[\s\S]*Sam Rivera\s+imessage · \+15550111 · Acme Talent/);
+  assert.equal(JSON.parse(shim("agents", "--json").stdout).yours[0].name, "Sam Rivera");
+  const typo = shim("add", "Fonzie");
+  assert.equal(typo.status, 1);
+  assert.match(typo.stderr, /Did you mean Fonzi\?/);
+  shim("draft", "--agent", "Sam Rivera", "--kind", "nudge", "--text", "Thanks!");
+  assert.match(shim("remove", "Sam Rivera").stdout, /Removed Sam Rivera\. Cancelled 1 unsent draft\./);
+  assert.match(shim("agents").stdout, /YOUR RECRUITERS\nNobody yet\./);
+});
+
+test("the screen says what it needs, with whole links, and counts what's blocking", () => {
+  const { run, shim } = sandbox([".claude"]);
+  run();
+  shim("profile", "set", "name", "Maya Chen");
+  shim("profile", "set", "roles", "Staff Engineer");
+  shim("profile", "set", "floor", "$180K");
+  shim("profile", "set", "where", "NYC");
+  shim("fact", "add", "Led 6", "--source", "resume");
+  shim("agent", "add", "Hedgy");
+  assert.match(shim("connect", "Hedgy", "signin").stdout, /Hedgy needs you/);
+  const brief = shim("brief", "--peek").stdout;
+  assert.match(brief, /1 thing needs you/);
+  assert.match(brief, /TO CONNECT\n! Hedgy\s+Sign in  https:\/\/www\.hedgy\.works/);
+  assert.match(brief, /○ Jack & Jill\s+Sign up \(referral link\)  https:\/\/jackandjill\.ai\/refer/);
+  assert.match(brief, /Click a link above/);
+  const screen = shim("connect").stdout;
+  assert.match(screen, /What I need from you/);
+  assert.match(screen, /Sellme is free because/, "a referral link comes with the disclosure");
+  assert.equal(JSON.parse(shim("brief", "--json", "--peek").stdout).connect[0].name, "Hedgy");
+  assert.match(shim("connect", "Jack", "&", "Jill", "skip").stdout, /won’t ask about Jack & Jill/);
+  shim("connect", "Hedgy", "ok");
+  assert.match(shim("brief", "--peek").stdout, /Nothing needs you/);
 });
 
 test("found in review: --flag=value works the same as --flag value", () => {
@@ -437,9 +484,58 @@ test("found in review: the helper finds Node even when the AI tool's PATH doesn'
   assert.equal(r.status, 0, r.stderr);
 });
 
-test("install says how to reach the helper from a terminal", () => {
-  const { run } = sandbox([".claude"]);
-  assert.match(run().stdout, /export PATH=".*\.sellme\/bin:\$PATH"/);
+test("plain `sellme` works after install: linked if it can be, a marked profile line if not, and uninstall takes both back", () => {
+  const install = (dir, PATH, SHELL) => spawnSync(process.execPath, [BIN, "install"], { env: { HOME: dir, PATH, SHELL }, encoding: "utf8" });
+  const uninstall = (dir) => spawnSync(process.execPath, [BIN, "uninstall"], { env: { HOME: dir, PATH: "/usr/bin:/bin" }, encoding: "utf8" });
+  const home = () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sellme-cmd-"));
+    fs.mkdirSync(path.join(dir, ".claude"));
+    return dir;
+  };
+
+  const linked = home();
+  const local = path.join(linked, ".local/bin");
+  assert.match(install(linked, `${local}:/usr/bin:/bin`, "/bin/zsh").stdout, /type sellme to open the app/);
+  const works = spawnSync("sellme", ["version"], { env: { HOME: linked, PATH: `${local}:/usr/bin:/bin:${path.dirname(process.execPath)}` }, encoding: "utf8" });
+  assert.equal(works.status, 0, works.stderr);
+  assert.equal(fs.existsSync(path.join(linked, ".zshrc")), false);
+  uninstall(linked);
+  assert.throws(() => fs.lstatSync(path.join(local, "sellme")));
+
+  const profiled = home();
+  const rc = path.join(profiled, ".zshrc");
+  fs.writeFileSync(rc, "alias x=y\n");
+  assert.match(install(profiled, "/usr/bin:/bin", "/bin/zsh").stdout, /open a new terminal/);
+  install(profiled, "/usr/bin:/bin", "/bin/zsh");
+  assert.equal(fs.readFileSync(rc, "utf8").match(/Added by Sellme/g).length, 1);
+  uninstall(profiled);
+  assert.equal(fs.readFileSync(rc, "utf8"), "alias x=y\n");
+
+  const taken = home();
+  const theirs = path.join(taken, ".local/bin");
+  fs.mkdirSync(theirs, { recursive: true });
+  fs.writeFileSync(path.join(theirs, "sellme"), "mine");
+  assert.match(install(taken, `${theirs}:/usr/bin:/bin`, "/bin/zsh").stdout, /export PATH=/);
+  assert.equal(fs.readFileSync(path.join(theirs, "sellme"), "utf8"), "mine");
+  uninstall(taken);
+  assert.equal(fs.readFileSync(path.join(theirs, "sellme"), "utf8"), "mine");
+
+  const elsewhere = home();
+  const custom = spawnSync(process.execPath, [BIN, "install"], { env: { HOME: elsewhere, PATH: `${path.join(elsewhere, ".local/bin")}:/usr/bin:/bin`, SHELL: "/bin/zsh", SELLME_HOME: path.join(elsewhere, "qa") }, encoding: "utf8" });
+  assert.equal(custom.status, 0, custom.stderr);
+  assert.equal(fs.existsSync(path.join(elsewhere, ".local/bin/sellme")), false);
+  assert.equal(fs.existsSync(path.join(elsewhere, ".zshrc")), false);
+});
+
+test("`connect Fonzie` finds Fonzi and prints the exact command when nobody's at a terminal", () => {
+  const { run, shim } = sandbox([".claude"]);
+  run();
+  shim("agent", "add", "Fonzi");
+  shim("connect", "Fonzi", "connector");
+  const out = shim("connect", "Fonzie", "--json").stdout;
+  assert.equal(JSON.parse(out)[0].name, "Fonzi");
+  assert.equal(JSON.parse(out)[0].mcp.url, "https://talent.fonzi.ai/mcp");
+  assert.match(shim("connect", "Nobody").stdout, /doesn’t need anything/);
 });
 
 test("found in review: a state file that isn't an object is never overwritten", () => {

@@ -9,7 +9,7 @@ Sellme works from a resume alone, but it writes better messages when it can see 
 | **Email** | Recruiter threads, intros, and rejections the pipeline doesn't know about yet |
 | **Notes or a job tracker** (Notion or similar) | Companies already in play, and ones that are finished |
 
-The user connects them in their AI tool's MCP or connector settings (in Claude Code, `/mcp`). You can't connect one for them or sign in for them.
+`{{SELLME}} connect --json` gives the exact command or link for each one, and `sellme connect` in a terminal does them one key at a time. You can run a command they've said yes to, but you can't sign in for them.
 
 ## Encouraging it
 
@@ -17,7 +17,7 @@ Encourage these at the moment they'd help, in one line, and say what it would ha
 
 > A recruiter asked for times, and I can't see your calendar. Connect it and I can suggest free slots myself.
 
-Mention each one at most once in a conversation. If the user says no, drop it. Everything keeps working without them.
+Mention each one at most once in a conversation. If the user says no, drop it, and run `{{SELLME}} connect "<name>" skip` so it leaves their list. Everything keeps working without them.
 
 ## Using them
 

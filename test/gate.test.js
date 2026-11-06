@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as core from "../lib/core.js";
-import { PROGRAMS, signupList } from "../lib/referrals.js";
-import { freshState } from "../lib/store.js";
+import { PROGRAMS, liveLink, signupList } from "../lib/referrals.js";
+import { freshState as newState } from "../lib/store.js";
+// These tests check the approval gate itself, so autopilot is off unless a test turns it on.
+const freshState = () => ({ ...newState(), autopilot: false });
 
 function state() {
   const s = freshState();
@@ -171,7 +173,7 @@ test("the signup list skips connected agents and uses a link only when it's on",
 });
 
 test("only verified referral links ship in the package", () => {
-  const live = PROGRAMS.filter((p) => p.referral_link).map((p) => [p.name, p.referral_link]);
+  const live = PROGRAMS.filter(liveLink).map((p) => [p.name, p.referral_link]);
   assert.deepEqual(live, [["Fonzi", "https://talent.fonzi.ai/referral/vxqkg9p9"], ["Jack & Jill", "https://jackandjill.ai/refer/rotem_lanyado"]]);
 });
 
@@ -231,19 +233,26 @@ test("auto-sent messages show up for the user, and pausing stops them", () => {
   assert.deepEqual(core.outbox(s), []);
 });
 
-test("changing an agent's address turns auto-approve off", () => {
+test("a new address from a check needs the user's yes once before Sellme writes there by itself", () => {
   const s = state();
   core.setAuto(s, "Standout", true);
-  assert.equal(core.addAgent(s, "Standout", { handle: "+15550100" }).channel, "imessage");
-  assert.equal(core.findAgent(s, "Standout").auto, true);
-  core.addAgent(s, "Standout", { handle: "+15559999" });
-  assert.equal(core.findAgent(s, "Standout").auto, false);
+  core.addAgent(s, "Standout", { handle: "+15550100" });
+  const first = core.addDraft(s, { agent: "Standout", asked: "NYC?", text: "Yes, NYC or remote.", sources: ["profile.where"] });
+  assert.equal(first.status, "approved", "the user's own address goes by itself");
+  core.addAgent(s, "Standout", { handle: "+15559999", byRun: true });
+  assert.equal(first.status, "pending", "approvals for the old address are taken back");
+  const next = core.addDraft(s, { agent: "Standout", asked: "Remote?", text: "Yes, NYC or remote.", sources: ["profile.where"] });
+  assert.equal(next.status, "pending");
+  assert.match(next.check.reasons.at(-1).message, /first message to Standout at \+15559999/);
+  core.approve(s, next.id);
+  core.markSent(s, next.id);
+  assert.equal(core.addDraft(s, { agent: "Standout", asked: "Hybrid?", text: "NYC or remote works.", sources: ["profile.where"] }).status, "approved");
 });
 
-test("found in review: changing an agent's channel turns auto-approve off too", () => {
+test("found in review: a check moving an agent to another channel makes it earn the yes again too", () => {
   const s = auto();
-  core.addAgent(s, "Fonzi", { channel: "browser" });
-  assert.equal(core.findAgent(s, "Fonzi").auto, false);
+  core.addAgent(s, "Fonzi", { channel: "browser", byRun: true });
+  assert.equal(core.trusted(s, core.findAgent(s, "Fonzi")), false);
 });
 
 test("found in review: a new address takes back approvals made for the old one", () => {
@@ -323,6 +332,172 @@ test("found in review: a role's agent is stored as connected, so case doesn't fa
   core.addRole(s, { company: "Acme", agent: "fonzi", stage: "talking" });
   const q = core.addDraft(s, { agent: "Fonzi", text: "Any update?", kind: "nudge", company: "Acme" });
   assert.ok(!q.check.reasons.some((r) => r.code === "other_channel"));
+});
+
+const person = () => {
+  const s = state();
+  core.addAgent(s, "Sam Rivera", { person: true, handle: "+15550111" });
+  return s;
+};
+
+test("a person's approved draft goes to the outbox, by the channel their handle needs", () => {
+  const s = person();
+  const q = core.addDraft(s, { agent: "Sam Rivera", asked: "NYC?", text: "Yes, NYC or remote.", sources: ["profile.where"] });
+  assert.equal(q.status, "pending");
+  core.approve(s, q.id);
+  assert.equal(q.status, "approved");
+  assert.deepEqual(core.outbox(s), [{ id: q.id, agent: "Sam Rivera", channel: "imessage", person: true, to: "+15550111", text: "Yes, NYC or remote." }]);
+  assert.equal(core.personRoute("jordan@talent.example"), "email");
+  assert.equal(core.personRoute("linkedin.com/in/priya-shah-test"), "linkedin");
+  assert.equal(core.personRoute("+1 (317) 565-3727"), "imessage");
+  assert.equal(core.personRoute("Max"), null);
+});
+
+test("a person's draft goes through the same truth check", () => {
+  const s = person();
+  assert.equal(core.addDraft(s, { agent: "Sam Rivera", asked: "Team?", text: "I managed 20.", sources: ["f1"] }).status, "blocked");
+  assert.equal(core.addDraft(s, { agent: "Sam Rivera", asked: "Range?", text: "I want $180K.", sources: ["profile.floor"] }).sensitive, true);
+});
+
+test("to a person, the user writes as themselves", () => {
+  const s = person();
+  for (const [asked, text] of [[null, "Hi Max, it's Maya."], ["Are you Maya?", "Yes, this is Maya."], ["Is this a bot?", "No, I'm a real person."]]) {
+    assert.equal(core.addDraft(s, { agent: "Sam Rivera", asked, text, kind: "nudge" }).status, "pending", text);
+  }
+});
+
+test("on autopilot a person the user added gets sure answers by themselves, and pay or scheduling still waits", () => {
+  const s = person();
+  s.autopilot = true;
+  const sure = core.addDraft(s, { agent: "Sam Rivera", asked: "NYC?", text: "Yes, NYC or remote.", sources: ["profile.where"] });
+  assert.equal(sure.status, "approved");
+  assert.deepEqual(core.outbox(s).map((o) => [o.channel, o.person]), [["imessage", true]]);
+  const pay = core.addDraft(s, { agent: "Sam Rivera", asked: "Salary?", text: "Happy to talk compensation.", kind: "nudge" });
+  assert.equal(pay.status, "pending");
+  const slot = core.addDraft(s, { agent: "Sam Rivera", asked: "Call Tuesday?", text: "Tuesday works for a call.", kind: "nudge" });
+  assert.equal(slot.status, "pending");
+  core.setAuto(s, "Sam Rivera", false);
+  assert.equal(core.addDraft(s, { agent: "Sam Rivera", asked: "Remote?", text: "NYC or remote.", sources: ["profile.where"] }).status, "pending");
+  core.setAutopilot(s, false);
+  assert.equal(sure.status, "pending", "turning autopilot off takes back what hasn't gone");
+});
+
+test("an answer in the user's words to a person is theirs to send too", () => {
+  const s = person();
+  const q = core.addBlock(s, { agent: "Sam Rivera", asked: "What happened to it?", reason: "No source." });
+  core.answerYourself(s, q.id, "I shut it down in 2023.");
+  assert.equal(q.status, "approved");
+  assert.equal(core.outbox(s)[0].text, "I shut it down in 2023.");
+});
+
+test("people don't count as recruiter agents", () => {
+  assert.equal(core.counts(person()).agents, 2);
+});
+
+test("a new recruiter is a person unless told otherwise", () => {
+  const s = state();
+  const max = core.addRecruiter(s, "Sam Rivera", { handle: "+15550111", company: "Acme Talent" });
+  assert.equal(max.channel, core.SELF);
+  assert.equal(max.company, "Acme Talent");
+  const bot = core.addRecruiter(s, "Acme Bot", { bot: true, channel: "email", handle: "bot@acme.com" });
+  assert.equal(bot.channel, "email");
+  assert.throws(() => core.addRecruiter(s, "Other Bot", { bot: true }), /How does Other Bot talk/);
+});
+
+test("the roster shows the catalog and the user's own list, kept apart", () => {
+  const s = state();
+  core.addRecruiter(s, "Sam Rivera", { handle: "+15550111" });
+  const r = core.roster(s);
+  assert.deepEqual(r.catalog.slice(0, 5).map((a) => [a.name, a.connected]), [["Fonzi", true], ["Standout", true], ["Boardy", false], ["Jack & Jill", false], ["Hedgy", false]]);
+  assert.deepEqual(r.yours.map((a) => a.name), ["Sam Rivera"]);
+});
+
+test("adding a catalog name connects the catalog entry, however it's written", () => {
+  const s = state();
+  const jj = core.addRecruiter(s, "jack and jill");
+  assert.equal(jj.name, "Jack & Jill");
+  assert.equal(jj.channel, "browser");
+  assert.deepEqual(core.roster(s).yours, []);
+});
+
+test("a near-duplicate is questioned, and --force settles it", () => {
+  const s = state();
+  assert.throws(() => core.addRecruiter(s, "Fonzie"), /Did you mean Fonzi\?/);
+  core.addRecruiter(s, "Sam Rivera", { handle: "+15550111" });
+  assert.throws(() => core.addRecruiter(s, "Sam Riviera"), /Did you mean Sam Rivera\?/);
+  assert.equal(core.addRecruiter(s, "Fonzie", { force: true }).channel, core.SELF);
+});
+
+test("the same number or email can't land on two recruiters", () => {
+  const s = state();
+  core.addRecruiter(s, "Sam Rivera", { handle: "+1 (317) 555-0111" });
+  assert.throws(() => core.addRecruiter(s, "Dana Lee", { handle: "317-555-0111" }), /already belongs to Sam Rivera/);
+  core.addRecruiter(s, "Pat Kim", { handle: "Pat@Firm.com" });
+  assert.throws(() => core.addRecruiter(s, "Sam Roe", { handle: "pat@firm.com" }), /already belongs to Pat Kim/);
+});
+
+test("adding someone again updates them instead of duplicating", () => {
+  const s = state();
+  core.addRecruiter(s, "Sam Rivera", { handle: "+15550111", company: "Acme Talent" });
+  const again = core.addRecruiter(s, "sam rivera", { handle: "+15550222" });
+  assert.equal(core.roster(s).yours.length, 1);
+  assert.equal(again.handle, "+15550222");
+  assert.equal(again.company, "Acme Talent");
+});
+
+const everyAgent = () => {
+  const s = state();
+  for (const { name, channel } of Object.values(core.CATALOG)) if (!core.findAgent(s, name)) core.addAgent(s, name, ["email", "imessage"].includes(channel) ? { handle: `${name.toLowerCase()}@agents.test` } : {});
+  return s;
+};
+
+test("what a run couldn't reach comes back as one list, with links", () => {
+  const s = everyAgent();
+  assert.deepEqual(core.connectList(s), []);
+  core.setConnection(s, "hedgy", "signin");
+  core.setConnection(s, "Standout", "access");
+  core.setConnection(s, "Fonzi", "connector");
+  const items = Object.fromEntries(core.connectList(s).map((i) => [i.name, i]));
+  assert.equal(items.Hedgy.url, "https://www.hedgy.works");
+  assert.match(items.Standout.url, /^x-apple\.systempreferences:/);
+  assert.match(items.Standout.action, /Full Disk Access/);
+  assert.equal(items.Fonzi.mcp.url, "https://talent.fonzi.ai/mcp");
+  assert.ok(Object.values(items).every((i) => i.blocking));
+});
+
+test("reaching it clears the item, and skip keeps it off the list for good", () => {
+  const s = everyAgent();
+  core.setConnection(s, "Hedgy", "signin");
+  core.setConnection(s, "Hedgy", "ok");
+  assert.deepEqual(core.connectList(s), []);
+  const fresh = state();
+  assert.ok(core.connectList(fresh).some((i) => i.name === "Hedgy"));
+  core.setConnection(fresh, "Hedgy", "skip");
+  assert.ok(!core.connectList(fresh).some((i) => i.name === "Hedgy"));
+});
+
+test("an unjoined agent is a signup that says when it's a referral link", () => {
+  const items = core.connectList(state());
+  const jj = items.find((i) => i.name === "Jack & Jill");
+  assert.equal(jj.kind, "signup");
+  assert.equal(jj.blocking, false);
+  assert.match(jj.action, /referral link/);
+  assert.match(jj.url, /jackandjill\.ai\/refer/);
+  assert.equal(items.find((i) => i.name === "Hedgy").action, "Sign up, invite-only");
+});
+
+test("something that isn't an agent can be on the list too", () => {
+  const s = everyAgent();
+  core.setConnection(s, "Google Calendar", "connector", "Connect it so I can suggest real free times");
+  assert.deepEqual(core.connectList(s).map((i) => [i.name, i.action, i.url]), [["Google Calendar", "Connect it so I can suggest real free times", null]]);
+  assert.throws(() => core.setConnection(s, "Hedgy", "maybe"), /Use one of/);
+});
+
+test("removing an agent clears what it needed", () => {
+  const s = everyAgent();
+  core.setConnection(s, "Hedgy", "signin");
+  core.removeAgent(s, "Hedgy");
+  assert.equal(s.connections.Hedgy, undefined);
 });
 
 test("a missing id gets a useful error", () => {
