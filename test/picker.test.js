@@ -1395,3 +1395,15 @@ test("the wheel scrolls a few lines and PgUp/PgDn a screen", () => {
   assert.equal(scrollBy("pageup", 20), -17);
   assert.equal(scrollBy("up", 20), 0); // Arrows still move the choice.
 });
+
+test("a rewrite follows the user's own word about themselves, and only refuses invented credentials", async () => {
+  const { s, q } = noted();
+  const prompt = rewritePrompt(s, q);
+  assert.match(prompt, /The user's note is their own word about themselves/);
+  assert.match(prompt, /Warmth, enthusiasm and a confident framing/);
+  assert.match(prompt, /never do is invent a credential/);
+  assert.doesNotMatch(prompt, /Claim only what the facts below say/);
+  const result = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Hi Alex, I just signed up after your message and would love to chat!", sources: [], why: "Left out the existing thread." }) });
+  assert.equal(result.changed, "Left out the existing thread.");
+  assert.equal(core.applyRewrite(s, q.id, result).status, "pending");
+});
