@@ -973,9 +973,9 @@ test("the gate sends a person's approved message only to their own address, on L
   assert.equal(send({ linkedin_username: "someone-else", message: "Hi Priya, happy to talk.", confirm_send: true }).decision, "deny");
   assert.equal(send({ linkedin_username: "priya-shah-test", message: "Hi Priya, happy to talk. Also my SSN", confirm_send: true }).decision, "deny");
   const mail = (input) => gate({ tool_name: "mcp__claude_ai_Gmail__reply", tool_input: input }, s, { run: "r1" });
-  assert.equal(mail({ to: ["jordan@talent.example"], body: "Hi Jordan, thanks for the intro.", replyThreadId: "18f2a00" }).decision, "allow");
-  assert.equal(mail({ to: ["other@talent.example"], body: "Hi Jordan, thanks for the intro." }).decision, "deny");
-  assert.equal(mail({ to: ["jordan@talent.example"], cc: ["x@y.com"], body: "Hi Jordan, thanks for the intro." }).decision, "deny");
+  assert.equal(mail({ to: ["jordan@talent.example"], body: em.approved_text, replyThreadId: "18f2a00" }).decision, "allow");
+  assert.equal(mail({ to: ["other@talent.example"], body: em.approved_text }).decision, "deny");
+  assert.equal(mail({ to: ["jordan@talent.example"], cc: ["x@y.com"], body: em.approved_text }).decision, "deny");
   assert.equal(canSendOn(li), true);
 });
 
@@ -1008,7 +1008,7 @@ test("a resume goes as the file by email, filled in by the gate, and as a link a
   core.approve(s, says.id);
   assert.deepEqual(core.outbox(s)[0].attach, { filename: "Maya Resume.pdf", content: core.ATTACH_TOKEN });
   const reply = (input) => gate({ tool_name: "mcp__claude_ai_Gmail__reply", tool_input: input }, s, { run: "r1" });
-  const base = { messageId: "msg0001", to: ["jordan@talent.example"], body: "Hi Jordan, my resume is attached." };
+  const base = { messageId: "msg0001", to: ["jordan@talent.example"], body: says.approved_text };
   assert.match(reply(base).reason, /goes with the user's resume/);
   assert.match(reply({ ...base, attachments: [{ filename: "x.pdf", content: "JVBERi0xLjQgZXZpbA==" }] }).reason, /goes with the user's resume/);
   const ok = reply({ ...base, attachments: [{ filename: "Maya Resume.pdf", content: core.ATTACH_TOKEN }] });
@@ -1311,4 +1311,23 @@ test("a suggestion looks for the user's real answer first, and only hands back t
   assert.match(prompt, /email, call notes \(Wispr Flow\) and notes \(Notion/);
   assert.match(prompt, /never someone else's words/);
   assert.deepEqual(await researchSuggest(s, q, { runner: async () => ({ stopped: true }) }), { failed: "stopped" });
+});
+
+test("an email reads like one: greeting, body and sign-off on their own lines, with only spacing changed", () => {
+  const text = "Hi Jenna and Tom, thanks for reaching out. I added my times through the link. Looking forward to it. Best, Sam";
+  assert.equal(core.emailLayout(text), "Hi Jenna and Tom,\n\nThanks for reaching out. I added my times through the link. Looking forward to it.\n\nBest,\nSam");
+  assert.equal(core.emailLayout("Thanks so much for the help."), "Thanks so much for the help.", "no greeting or name, left alone");
+  assert.equal(core.emailLayout("Hi Sam,\n\nAlready laid out."), "Hi Sam,\n\nAlready laid out.");
+  const s = freshState();
+  s.autopilot = false;
+  core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
+  core.addRecruiter(s, "Ben Ford", { handle: "+15550001234" });
+  const mail = core.addDraft(s, { agent: "Lee Park", text: "Hi Lee, happy to chat. Best, Sam", kind: "nudge" });
+  const sms = core.addDraft(s, { agent: "Ben Ford", text: "Hi Ben, happy to chat. Best, Sam", kind: "nudge" });
+  core.approve(s, mail.id);
+  core.approve(s, sms.id);
+  assert.equal(mail.approved_text, "Hi Lee,\n\nHappy to chat.\n\nBest,\nSam");
+  assert.equal(mail.text, mail.approved_text, "what's approved is what's sent");
+  assert.equal(sms.approved_text, "Hi Ben, happy to chat. Best, Sam", "a text stays one line");
+  assert.deepEqual(card(mail, palette(false), "", 60).split("\n").filter((l) => /Lee,|Happy|Best|Sam/.test(l)).map((l) => l.replace(/^\s*│\s*/, "")), ["Hi Lee,", "Happy to chat.", "Best,", "Sam"]);
 });
