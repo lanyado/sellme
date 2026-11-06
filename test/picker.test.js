@@ -236,7 +236,7 @@ test("each row offers what makes sense for it", () => {
   assert.deepEqual(ids(s, "Boardy"), ["open", "connect", "skip", "back"]);
   assert.deepEqual(ids(s, "Dana Lee"), ["auto", "auto", "remove", "back"], "a person can be answered by itself too");
   const fonzi = actionsFor(s, row(s, "Fonzi")).filter((a) => a.id === "auto");
-  assert.deepEqual(fonzi.map((a) => [a.label, a.chosen]), [["○ Send it by myself", false], ["● Ask you first", true]], "the one that's on is marked");
+  assert.deepEqual(fonzi.map((a) => [a.label, a.chosen]), [["○ SELLME sends it", false], ["● SELLME asks you first", true]], "the one that's on is marked");
 });
 
 test("sign-in opens the catalog's own page", () => {
@@ -1155,7 +1155,7 @@ test("asked for a resume by email, the PDF goes with the answer without anyone p
   assert.equal(plain.attach, undefined);
 });
 
-test("an email reply goes in its thread with reply-all, never as a new email, and only to the recorded message", async () => {
+test("an email reply goes on the newest message of its thread with reply-all, never as a new email, never another thread", async () => {
   const { fastPlan } = await import("../lib/agent.js");
   const s = freshState();
   s.profile.name = "Maya";
@@ -1163,10 +1163,16 @@ test("an email reply goes in its thread with reply-all, never as a new email, an
   const q = core.addDraft(s, { agent: "Lee Park", asked: "Boardy intro: want to chat?", text: "Hi Lee, thanks Boardy. Happy to chat.", kind: "nudge", thread: "18f2abc901" });
   core.approve(s, q.id);
   const plan = fastPlan(core.outbox(s)[0]);
-  assert.deepEqual(plan.input, { messageId: "18f2abc901", body: "Hi Lee, thanks Boardy. Happy to chat.", replyAll: true });
-  const send = (tool, input) => gate({ tool_name: `mcp__claude_ai_Gmail__${tool}`, tool_input: input }, s, { run: "r1" });
+  assert.match(plan.prompt, /get_message[\s\S]*"18f2abc901"[\s\S]*get_thread[\s\S]*newest message[\s\S]*"replyAll": true/);
+  const browser = { tabs: {}, urls: {}, refs: {}, typed: {} };
+  const send = (tool, input) => gate({ tool_name: `mcp__claude_ai_Gmail__${tool}`, tool_input: input }, s, { run: "r1", browser });
   assert.equal(send("reply", { messageId: "18f2abc901", body: q.text, replyAll: true }).decision, "allow");
-  assert.equal(send("reply", { messageId: "someOtherMsg", body: q.text, replyAll: true }).decision, "deny");
+  assert.equal(send("reply", { messageId: "newerMsg77", body: q.text, replyAll: true }).decision, "deny", "not until the run has read the thread");
+  // The run reads the thread: someone wrote since, so the reply goes on that newest message.
+  learnFromTool({ tool_name: "mcp__claude_ai_Gmail__get_thread", tool_response: [{ type: "text", text: JSON.stringify({ id: "18f2abc901", messages: [{ id: "18f2abc901" }, { id: "newerMsg77" }] }) }] }, browser);
+  learnFromTool({ tool_name: "mcp__claude_ai_Gmail__search_threads", tool_response: JSON.stringify({ threads: [{ id: "otherThr", messages: [{ id: "someOtherMsg", threadId: "otherThr" }] }] }) }, browser);
+  assert.equal(send("reply", { messageId: "newerMsg77", body: q.text, replyAll: true }).decision, "allow");
+  assert.equal(send("reply", { messageId: "someOtherMsg", body: q.text, replyAll: true }).decision, "deny", "another thread");
   assert.match(send("send_message", { to: ["lee@talent.example"], subject: "Maya", body: q.text }).reason, /goes in their thread/);
   const noThread = core.addDraft(s, { agent: "Lee Park", asked: "Free Friday?", text: "Friday works.", kind: "nudge" });
   core.approve(s, noThread.id);
