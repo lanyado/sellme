@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
-import { activityRows, chatLink, draftLine, liveLine, flightFrame, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, chatLink, draftLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -940,21 +940,24 @@ test("a run can look up and update roles, and a refusal names what it can do ins
   assert.match(bash("sellme approve q1").reason, /belongs to the user/);
 });
 
-test("a run can label an item as handled, but only the user clears it", () => {
+test("a run can mark an item handled, which skips it and says why in Activity", () => {
   const s = state();
   const q = core.addDraft(s, { agent: "Fonzi", asked: "Open to NYC?", text: "Yes, NYC.", sources: ["profile.where"] });
   assert.equal(gate({ tool_name: "Bash", tool_input: { command: `sellme handled ${q.id} --reason "You answered it yourself"` } }, s, { run: "r" }).decision, "allow");
   assert.equal(gate({ tool_name: "Bash", tool_input: { command: `sellme skip ${q.id}` } }, s, { run: "r" }).decision, "deny");
-  const before = q.status;
-  core.markHandled(s, q.id, "You answered it yourself");
-  assert.equal(q.status, before, "it stays on the list");
-  const rows = draftRows(s);
-  assert.ok(rows.some((r) => r.heading?.startsWith("Looks handled already")));
-  assert.deepEqual(rows.filter((r) => r.handled).map((r) => [r.id, r.text]), [[q.id, "You answered it yourself"]]);
-  assert.ok(!summary(s).includes("draft"), "a handled one isn't counted as needing you");
   assert.throws(() => core.markHandled(s, q.id, ""), /reason/);
-  core.skip(s, q.id);
+  core.markHandled(s, q.id, "You answered it yourself");
+  assert.equal(q.status, "skipped");
+  assert.match(s.notes.at(-1).text, /No reply needed: You answered it yourself/);
+  assert.ok(!draftRows(s).some((r) => r.id === q.id), "it's off the list");
+  assert.ok(!summary(s).includes("draft"));
   assert.throws(() => core.markHandled(s, q.id, "x"), /isn’t open/);
+  // One marked handled before this skips the same way on the next check.
+  const old = core.addDraft(s, { agent: "Fonzi", asked: "Remote?", text: "Yes, remote.", sources: ["profile.where"] });
+  old.status = "pending";
+  old.handled = { reason: "You said it on the call", ts: "x" };
+  core.recheckOpen(s);
+  assert.equal(old.status, "skipped");
 });
 
 test("the gate sends a person's approved message only to their own address, on LinkedIn, email or iMessage", () => {
@@ -1045,17 +1048,6 @@ test("every AI Sellme starts gets the same opening the skill file has, the one t
   assert.ok(rewritePrompt(s, s.queue[0]).startsWith(PERSONA));
 });
 
-test("the send animation flies the message across, and lands with a check", () => {
-  const strip = (t) => t.replace(/\x1b\[[0-9;]*m/g, "");
-  const first = strip(flightFrame(0, "Fonzi", c));
-  const later = strip(flightFrame(5, "Fonzi", c));
-  assert.equal(first, `  you ✉${"·".repeat(21)} Fonzi`);
-  assert.equal(later, `  you ${"━".repeat(5)}✉${"·".repeat(16)} Fonzi`);
-  assert.equal(strip(flightFrame(9, "Fonzi", c, { done: true })), `  you ${"━".repeat(22)} ✓ Fonzi`);
-  assert.equal(first.length, later.length, "it never jumps around");
-  assert.equal(strip(flightFrame(23, "Fonzi", c)), first, "it loops while it waits");
-});
-
 test("an answer only the user could give is remembered once it's sent, and a used note is cleared", () => {
   const s = freshState();
   core.addAgent(s, "Standout", { channel: "imessage", handle: "+14155550100" });
@@ -1133,6 +1125,14 @@ test("a LinkedIn reply goes into its own conversation in Chrome, never a new cha
   const type = (tabId) => gate({ tool_name: "mcp__claude-in-chrome__computer", tool_input: { action: "type", tabId, text: "Yes, any time this morning." } }, s, { run: "r1", browser }).decision;
   assert.equal(type(5), "allow");
   assert.equal(type(6), "deny", "someone else's conversation can't take it");
+  // Enter on LinkedIn can just add a line, so only the Send button counts as sending.
+  browser.typed[5] = q.id;
+  browser.refs[5].ref_2 = "send";
+  const act = (input) => gate({ tool_name: "mcp__claude-in-chrome__computer", tool_input: { tabId: 5, ...input } }, s, { run: "r1", browser });
+  assert.equal(act({ action: "key", text: "Return" }).decision, "deny");
+  assert.equal(act({ action: "left_click", ref: "ref_2" }).cleared, q.id);
+  assert.match(plan.prompt, /left_click the Send button/);
+  assert.match(plan.prompt, /Never press Return/);
   const noThread = core.addDraft(s, { agent: "Ben Ford", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
   core.approve(s, noThread.id);
   const lookup = fastPlan(core.outbox(s).find((x) => x.id === noThread.id));
@@ -1192,4 +1192,117 @@ test("a check knows who to push next: when each contact last heard from the user
 test("the live line says it's selling you, what it's reading, and for how long", () => {
   const line = liveLine(0, 1000, ["Reading iMessage", "Reading Fonzi"], c, 43_000);
   assert.match(line, /Selling you to every agent · Reading Fonzi 0:42$/);
+});
+
+test("a LinkedIn send counts only when the run saw it land, not when the click went through", () => withSandbox(async () => {
+  const { sendOutbox } = await import("../lib/agent.js");
+  withState((s) => {
+    Object.assign(s, { setup_done: true });
+    core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
+    const q = core.addDraft(s, { agent: "Ben Ford", asked: "Talk today?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
+    if (q.status !== "approved") core.approve(s, q.id);
+  });
+  const id = load().queue[0].id;
+  const runner = (output) => async (_, { run }) => {
+    withState((s) => {
+      const q = s.queue.find((x) => x.id === id);
+      q.send_cleared = { run, ts: new Date().toISOString() };
+      q.send_confirmed = { run, ts: new Date().toISOString() };
+    });
+    return { ok: true, output };
+  };
+  const failed = await sendOutbox(id, { runner: runner("failed: the message is still in the box") });
+  assert.equal(failed.sent, false);
+  assert.equal(load().queue[0].status, "approved");
+  const sent = await sendOutbox(id, { runner: runner("sent") });
+  assert.equal(sent.sent, true);
+  assert.equal(load().queue[0].status, "sent");
+}));
+
+test("an approved message shows a spinner by the name while it goes, and a failed one asks for a click", () => {
+  const s = freshState();
+  s.autopilot = false;
+  core.addAgent(s, "Fonzi");
+  const q = core.addDraft(s, { agent: "Fonzi", text: "Any new roles?", kind: "nudge" });
+  core.approve(s, q.id);
+  const now = Date.now();
+  const going = draftRows(s, { going: new Map([[q.id, { started: now - 4000 }]]), frame: 1, now });
+  assert.ok(going.some((r) => r.heading === "Selling you now"));
+  const row = going.find((r) => r.id === q.id);
+  assert.equal(row.sending, true);
+  assert.equal(row.mark, "⠙");
+  assert.match(row.text, /Sending 0:04 · click to stop/);
+  const failed = draftRows(s, { failed: new Map([[q.id, "No reply from Chrome"]]) }).find((r) => r.id === q.id);
+  assert.equal(failed.mark, "✗");
+  assert.match(failed.text, /No reply from Chrome · click to try again/);
+  assert.match(summary(s), /selling you to 1 now/);
+});
+
+test("one sender at a time: a message the app is sending can't be sent by a check too", () => {
+  const s = freshState();
+  s.autopilot = false;
+  core.addAgent(s, "Fonzi");
+  const q = core.addDraft(s, { agent: "Fonzi", text: "Any new roles?", kind: "nudge" });
+  core.approve(s, q.id);
+  assert.equal(core.claimSend(s, q.id, "app"), true);
+  assert.equal(core.claimedElsewhere(q, "check"), true);
+  assert.equal(core.claimedElsewhere(q, "app"), false);
+  assert.equal(core.claimSend(s, q.id, "check"), false, "taken");
+  q.sending.pid = 999999; // The app that claimed it has quit.
+  assert.equal(core.claimSend(s, q.id, "check"), true);
+  core.releaseSend(s, q.id, "check");
+  q.send_cleared = { run: "check2", ts: new Date().toISOString() }; // A check just pressed send on it.
+  assert.equal(core.claimSend(s, q.id, "app"), false);
+});
+
+test("an iMessage agent a scheduled check flagged for access is connected again once this terminal can read Messages", () => withSandbox(async () => {
+  withState((s) => {
+    core.addAgent(s, "Clera", { channel: "imessage", handle: "+15550001111" });
+    core.setConnection(s, "Clera", "access");
+  });
+  assert.deepEqual(refreshConnections({ hosts: [], messages: () => false }), []);
+  assert.equal(load().connections.Clera.status, "access");
+  assert.deepEqual(refreshConnections({ hosts: [], messages: () => true }), ["Clera"]);
+  assert.equal(load().connections.Clera, undefined, "no flag left");
+}));
+
+test("a run can read the user's own files to find their answer, but never hidden folders, Library or secrets", async () => {
+  const { researchable } = await import("../lib/agent.js");
+  const h = "/Users/sam";
+  for (const ok of ["/Users/sam/Documents/projects/notes.md", "~/Desktop/resume.pdf", "/Users/sam/resume"]) assert.equal(researchable(ok.replace("~", h), h), true, ok);
+  for (const no of ["/Users/sam/.ssh/id_rsa", "/Users/sam/.sellme/state.json", "/Users/sam/Library/Keychains/x", "/Users/sam/Documents/.env", "/Users/sam/Documents/aws-credentials.csv", "/Users/sam/Documents/server.pem", "/Users/sam", "/etc/passwd", "/Users/sam/../other/x", undefined]) assert.equal(researchable(no, h), false, String(no));
+  const s = freshState();
+  const read = (name, input) => gate({ tool_name: name, tool_input: input }, s, { run: "r" }).decision;
+  const home = os.homedir();
+  assert.equal(read("Read", { file_path: path.join(home, "Documents", "x.md") }), "allow");
+  assert.equal(read("Read", { file_path: path.join(home, ".sellme", "state.json") }), "deny", "the floor lives there");
+  assert.equal(read("Grep", { pattern: "LangGraph" }), "deny", "a folder has to be named");
+  assert.equal(read("Grep", { pattern: "LangGraph", path: path.join(home, "Documents"), glob: "**/.env" }), "deny");
+  assert.equal(read("Grep", { pattern: "LangGraph", path: path.join(home, "Documents") }), "allow");
+});
+
+test("a run can search Notion, but not change it", () => {
+  const s = freshState();
+  const mcp = (tool) => gate({ tool_name: `mcp__notion__${tool}`, tool_input: {} }, s, { run: "r" }).decision;
+  assert.equal(mcp("notion-search"), "allow");
+  assert.equal(mcp("notion-fetch"), "allow");
+  assert.equal(mcp("notion-create-pages"), "deny");
+  assert.equal(mcp("notion-update-page"), "deny");
+});
+
+test("a suggestion looks for the user's real answer first, and only hands back text to check", async () => {
+  const { researchSuggest } = await import("../lib/agent.js");
+  const s = freshState();
+  core.addRecruiter(s, "Ben Ford", { handle: "ben@talent.example" });
+  const q = core.addBlock(s, { agent: "Ben Ford", asked: "Yes or no on LangGraph?", reason: "Your facts don't name it" });
+  let prompt;
+  const runner = async (p) => {
+    prompt = p;
+    return { ok: true, output: 'Looked.\n{"text": "Yes, I used LangGraph for an agent prototype.", "sources": [], "why": "LangGraph: your Oct 3 call"}' };
+  };
+  const result = await researchSuggest(s, q, { runner });
+  assert.equal(result.text, "Yes, I used LangGraph for an agent prototype.");
+  assert.match(prompt, /email, call notes \(Wispr Flow\) and notes \(Notion/);
+  assert.match(prompt, /never someone else's words/);
+  assert.deepEqual(await researchSuggest(s, q, { runner: async () => ({ stopped: true }) }), { failed: "stopped" });
 });
