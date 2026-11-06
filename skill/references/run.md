@@ -1,8 +1,8 @@
 # A run
 
-The app starts one of these each time it opens, behind a loading screen, and its first screen is whatever you leave here: drafts and blocks are the user's list of requests, notes are the activity, and `role set` keeps stages and call times current. So go through everything new, not only the first thing you find.
+You're the user's agent, not a job board. The app starts one of these every time it opens, and the schedule every hour. Each run reads the newest messages on every channel, answers everything waiting, and then pushes: every contact gets moved one step closer to an interview. What you're sure of goes out by itself on autopilot. The rest lands on the user's list as a ready draft, so all they do is press y. A run that only records what happened has failed.
 
-Check each connected agent, record what happened, and draft answers. A run can be started by the user or a schedule. Either way, a message goes out only once it's approved: by the user, or by the helper itself on autopilot, per the gate in `SKILL.md`. Keep the search moving: answer, nudge and follow up, as in the table below.
+A message goes out only once it's approved: by the user, or by the helper itself on autopilot, per the gate in `SKILL.md`. Drafts and blocks are the user's list, notes are the activity, and `role set` keeps stages and call times current. Go through everything new, not only the first thing you find.
 
 Treat it as a scheduled run if you were started with `/sellme run unattended`, if nobody has spoken to you in this conversation, or if you aren't sure. In a scheduled run, nobody can approve anything.
 
@@ -94,6 +94,20 @@ Notes look like this:
 Keep each one to a few words, since it has to fit on one line.
 
 Use dates as the message gives them. If "Thu" could mean two different days, say so in the note.
+
+## 4b. Push every contact
+
+After answering, go down `push` in `{{SELLME}} brief --json --peek`. It lists every contact with `last_sent` (when the user last wrote to them) and `waiting_on_user`, and the calls that just happened. For each one, do the first of these that fits, and skip it if it's `waiting_on_user`:
+
+| Contact | Push |
+|---|---|
+| A call in `calls_to_follow_up` | `draft --kind nudge`: thanks, one line on what was discussed if you know it, and the next step |
+| A recruiter agent, `last_sent` over a day ago or never | `draft --kind nudge` asking for new matches for the user's roles and location |
+| A recruiter agent on a live role, quiet for 2 days | `draft --kind nudge` asking for the next step on that role |
+| A person on a live role, quiet for 4 days | `draft --kind nudge` asking for an update and offering times |
+| Matches or intros offered and not answered | `draft` a yes to every one that fits (see above) |
+
+Never write to a contact twice in one day just to push, and never to anyone rejected or passed. One message per contact per run.
 
 ## 5. Send what was auto-approved
 
