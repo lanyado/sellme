@@ -31,7 +31,7 @@ test("only approved drafts reach the outbox, with the exact approved text and ad
   const q = ok(s);
   assert.deepEqual(core.outbox(s), []);
   core.approve(s, q.id);
-  assert.deepEqual(core.outbox(s), [{ id: q.id, agent: "Standout", channel: "imessage", to: "+15550100", text: "Yes. NYC or remote." }]);
+  assert.deepEqual(core.outbox(s), [{ id: q.id, agent: "Standout", channel: "imessage", to: "+15550100", text: "Yes. NYC or remote.", reply: true }]);
 });
 
 test("editing voids the approval and rechecks", () => {
@@ -346,7 +346,7 @@ test("a person's approved draft goes to the outbox, by the channel their handle 
   assert.equal(q.status, "pending");
   core.approve(s, q.id);
   assert.equal(q.status, "approved");
-  assert.deepEqual(core.outbox(s), [{ id: q.id, agent: "Sam Rivera", channel: "imessage", person: true, to: "+15550111", text: "Yes, NYC or remote." }]);
+  assert.deepEqual(core.outbox(s), [{ id: q.id, agent: "Sam Rivera", channel: "imessage", person: true, to: "+15550111", text: "Yes, NYC or remote.", reply: true }]);
   assert.equal(core.personRoute("jordan@talent.example"), "email");
   assert.equal(core.personRoute("linkedin.com/in/priya-shah-test"), "linkedin");
   assert.equal(core.personRoute("+1 (317) 565-3727"), "imessage");

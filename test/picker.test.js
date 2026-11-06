@@ -962,7 +962,7 @@ test("the gate sends a person's approved message only to their own address, on L
   core.addRecruiter(s, "Priya Shah", { handle: "linkedin.com/in/priya-shah-test" });
   core.addRecruiter(s, "Jordan Park", { handle: "jordan@talent.example" });
   const li = core.addDraft(s, { agent: "Priya Shah", text: "Hi Priya, happy to talk.", kind: "nudge" });
-  const em = core.addDraft(s, { agent: "Jordan Park", text: "Hi Jordan, thanks for the intro.", kind: "nudge" });
+  const em = core.addDraft(s, { agent: "Jordan Park", text: "Hi Jordan, thanks for the intro.", kind: "nudge", thread: "18f2a00" });
   core.approve(s, li.id);
   core.approve(s, em.id);
   const send = (input) => gate({ tool_name: "mcp__linkedin__send_message", tool_input: input }, s, { run: "r1" });
@@ -970,7 +970,7 @@ test("the gate sends a person's approved message only to their own address, on L
   assert.equal(send({ linkedin_username: "someone-else", message: "Hi Priya, happy to talk.", confirm_send: true }).decision, "deny");
   assert.equal(send({ linkedin_username: "priya-shah-test", message: "Hi Priya, happy to talk. Also my SSN", confirm_send: true }).decision, "deny");
   const mail = (input) => gate({ tool_name: "mcp__claude_ai_Gmail__reply", tool_input: input }, s, { run: "r1" });
-  assert.equal(mail({ to: ["jordan@talent.example"], body: "Hi Jordan, thanks for the intro.", replyThreadId: "18f2a" }).decision, "allow");
+  assert.equal(mail({ to: ["jordan@talent.example"], body: "Hi Jordan, thanks for the intro.", replyThreadId: "18f2a00" }).decision, "allow");
   assert.equal(mail({ to: ["other@talent.example"], body: "Hi Jordan, thanks for the intro." }).decision, "deny");
   assert.equal(mail({ to: ["jordan@talent.example"], cc: ["x@y.com"], body: "Hi Jordan, thanks for the intro." }).decision, "deny");
   assert.equal(canSendOn(li), true);
@@ -995,7 +995,7 @@ test("a resume goes as the file by email, filled in by the gate, and as a link a
   const s = freshState();
   core.addRecruiter(s, "Jordan Park", { handle: "jordan@talent.example" });
   core.addRecruiter(s, "Alex Kim", { handle: "linkedin.com/in/alex-kim-test" });
-  const says = core.addDraft(s, { agent: "Jordan Park", text: "Hi Jordan, my resume is attached.", kind: "nudge" });
+  const says = core.addDraft(s, { agent: "Jordan Park", text: "Hi Jordan, my resume is attached.", kind: "nudge", thread: "msg0001" });
   assert.equal(says.status, "blocked");
   assert.match(says.check.reasons[0].message, /says something is attached, but nothing is/);
   assert.throws(() => core.attachResume(s, says.id), /sellme profile set resume/);
@@ -1005,7 +1005,7 @@ test("a resume goes as the file by email, filled in by the gate, and as a link a
   core.approve(s, says.id);
   assert.deepEqual(core.outbox(s)[0].attach, { filename: "Maya Resume.pdf", content: core.ATTACH_TOKEN });
   const reply = (input) => gate({ tool_name: "mcp__claude_ai_Gmail__reply", tool_input: input }, s, { run: "r1" });
-  const base = { messageId: "m1", to: ["jordan@talent.example"], body: "Hi Jordan, my resume is attached." };
+  const base = { messageId: "msg0001", to: ["jordan@talent.example"], body: "Hi Jordan, my resume is attached." };
   assert.match(reply(base).reason, /goes with the user's resume/);
   assert.match(reply({ ...base, attachments: [{ filename: "x.pdf", content: "JVBERi0xLjQgZXZpbA==" }] }).reason, /goes with the user's resume/);
   const ok = reply({ ...base, attachments: [{ filename: "Maya Resume.pdf", content: core.ATTACH_TOKEN }] });
@@ -1111,4 +1111,64 @@ test("a draft row is a short preview that never wraps, even with a tag", () => {
     assert.ok(line.length <= Math.min(width, 120), `${width}: ${line.length}`);
     assert.match(line, /… · note for the AI$/);
   }
+});
+
+test("a LinkedIn reply goes into its own conversation in Chrome, never a new chat, and only there", async () => {
+  const { fastPlan } = await import("../lib/agent.js");
+  const s = freshState();
+  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const q = core.addDraft(s, { agent: "Ben Ford", asked: "Can you talk this morning?", text: "Yes, any time this morning.", kind: "nudge", thread: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" });
+  assert.equal(q.thread, "2-AbC123xyz");
+  core.approve(s, q.id);
+  const o = core.outbox(s)[0];
+  const plan = fastPlan(o);
+  assert.equal(plan.chrome, true);
+  assert.match(plan.prompt, /linkedin\.com\/messaging\/thread\/2-AbC123xyz\//);
+  assert.ok(!plan.tools.includes("mcp__linkedin__send_message"), "never the tool that starts a new chat");
+  const nav = (url) => gate({ tool_name: "mcp__claude-in-chrome__navigate", tool_input: { url } }, s, { run: "r1" }).decision;
+  assert.equal(nav("https://www.linkedin.com/messaging/thread/2-AbC123xyz/"), "allow");
+  assert.equal(nav("https://www.linkedin.com/messaging/thread/2-SomeoneElse/"), "deny");
+  assert.equal(nav("https://www.linkedin.com/feed/"), "deny");
+  const browser = { tabs: { 5: "linkedin.com", 6: "linkedin.com" }, urls: { 5: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/", 6: "https://www.linkedin.com/messaging/thread/2-SomeoneElse/" }, refs: { 5: { ref_1: "box" }, 6: { ref_1: "box" } }, typed: {} };
+  const type = (tabId) => gate({ tool_name: "mcp__claude-in-chrome__computer", tool_input: { action: "type", tabId, text: "Yes, any time this morning." } }, s, { run: "r1", browser }).decision;
+  assert.equal(type(5), "allow");
+  assert.equal(type(6), "deny", "someone else's conversation can't take it");
+  const noThread = core.addDraft(s, { agent: "Ben Ford", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
+  core.approve(s, noThread.id);
+  const lookup = fastPlan(core.outbox(s).find((x) => x.id === noThread.id));
+  assert.match(lookup.prompt, /get_conversation[\s\S]*thread q\d+ <that thread_id>/, "a reply with no conversation on record looks it up first");
+  const first = core.addDraft(s, { agent: "Ben Ford", text: "Hi Ben, Maya here.", kind: "nudge" });
+  core.approve(s, first.id);
+  assert.equal(fastPlan(core.outbox(s).find((x) => x.id === first.id)).tool, "mcp__linkedin__send_message", "a first message starts the chat");
+});
+
+test("asked for a resume by email, the PDF goes with the answer without anyone pressing anything", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sellme-cv-"));
+  const file = path.join(dir, "cv.pdf");
+  fs.writeFileSync(file, "%PDF-1.4");
+  const s = freshState();
+  core.setResume(s, { file });
+  core.addRecruiter(s, "Meg Stone", { handle: "meg@talent.example" });
+  const q = core.addDraft(s, { agent: "Meg Stone", asked: "Could you send over a resume ahead of Monday?", text: "Of course, here it is.", kind: "nudge" });
+  assert.equal(q.attach, "file");
+  const plain = core.addDraft(s, { agent: "Meg Stone", asked: "Free Monday?", text: "Monday works.", kind: "nudge" });
+  assert.equal(plain.attach, undefined);
+});
+
+test("an email reply goes in its thread with reply-all, never as a new email, and only to the recorded message", async () => {
+  const { fastPlan } = await import("../lib/agent.js");
+  const s = freshState();
+  s.profile.name = "Maya";
+  core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
+  const q = core.addDraft(s, { agent: "Lee Park", asked: "Boardy intro: want to chat?", text: "Hi Lee, thanks Boardy. Happy to chat.", kind: "nudge", thread: "18f2abc901" });
+  core.approve(s, q.id);
+  const plan = fastPlan(core.outbox(s)[0]);
+  assert.deepEqual(plan.input, { messageId: "18f2abc901", body: "Hi Lee, thanks Boardy. Happy to chat.", replyAll: true });
+  const send = (tool, input) => gate({ tool_name: `mcp__claude_ai_Gmail__${tool}`, tool_input: input }, s, { run: "r1" });
+  assert.equal(send("reply", { messageId: "18f2abc901", body: q.text, replyAll: true }).decision, "allow");
+  assert.equal(send("reply", { messageId: "someOtherMsg", body: q.text, replyAll: true }).decision, "deny");
+  assert.match(send("send_message", { to: ["lee@talent.example"], subject: "Maya", body: q.text }).reason, /goes in their thread/);
+  const noThread = core.addDraft(s, { agent: "Lee Park", asked: "Free Friday?", text: "Friday works.", kind: "nudge" });
+  core.approve(s, noThread.id);
+  assert.match(fastPlan(core.outbox(s).find((o) => o.id === noThread.id)).prompt, /search_threads[\s\S]*thread q\d+ <that message id>[\s\S]*"replyAll": true/);
 });
