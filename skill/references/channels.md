@@ -20,13 +20,13 @@ Needs a Mac and a messages connector. Send only to the exact `to` handle from `o
 
 ## Email (Boardy, and people with an email address)
 
-Reply in the latest thread with that address, using the email tool's reply (or `replyThreadId`), with no subject line and nobody copied. If there's no thread with them, send a new email to `to` with `subject` exactly as the outbox gives it. Don't stop to ask which: nobody can answer during a send. Send only to the exact `to` address. If the thread includes other people, show the user who'll see it before they approve.
+Reply in the thread the outbox item's `thread` names, with the email tool's reply, `messageId` set to it and `replyAll` true, so whoever made the intro stays on it. With no `thread`, find their newest thread, record its newest message with `{{SELLME}} thread <id> <message id>`, then reply there. Only a first message (no `reply` in the outbox) starts a new email, to `to` with `subject` exactly as the outbox gives it. Don't stop to ask which: nobody can answer during a send. Send only to the exact `to` address. If the thread includes other people, show the user who'll see it before they approve.
 
 If the outbox item has `attach`, put that object, unchanged, as the only item in the tool's `attachments`: `[{"filename": "<its filename>", "content": "SELLME_RESUME"}]`. Never encode or read the file yourself. The gate swaps in the user's real resume, and refuses the send if the attachment is missing or anything else.
 
 ## LinkedIn (people with a LinkedIn profile)
 
-Send with the LinkedIn tool's `send_message`: `linkedin_username` is the exact `to` from `outbox`, `message` the approved text, `confirm_send` true. Nothing else. LinkedIn and iMessage can't carry files here, so a resume goes as the link already in the approved text. If LinkedIn says the person can't be messaged yet, leave it in the outbox and tell the user why.
+A reply goes in its conversation. The LinkedIn tool's `send_message` only starts a new chat, so for an item with `reply`, open `https://www.linkedin.com/messaging/thread/<thread>/` in Chrome and type it there, as for a browser agent. With no `thread`, get it from the LinkedIn tool's `get_conversation` and record it with `{{SELLME}} thread <id> <thread_id>` first. Only a first message uses `send_message`: `linkedin_username` is the exact `to`, `message` the approved text, `confirm_send` true. Nothing else. LinkedIn and iMessage can't carry files here, so a resume goes as the link already in the approved text. If LinkedIn says the person can't be messaged yet, leave it in the outbox and tell the user why.
 
 ## Browser (Jack & Jill and most of the catalog)
 
