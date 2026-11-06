@@ -355,3 +355,9 @@ test("an open draft to an agent on autopilot is approved when checked again, and
   assert.ok(held.check.reasons.some((r) => r.code === "scheduling"));
   assert.equal(core.recheckOpen(s), 0, "a second pass changes nothing");
 });
+
+test("a blank left for the user never goes out", async () => {
+  const { placeholder } = await import("../lib/truth.js");
+  for (const t of ["Zeekit [why it was 14 months].", "about [ ] users", "Hi <first name>,", "Hi {{name}}", "TODO add numbers", "XXX users"]) assert.ok(placeholder(t), t);
+  for (const t of ["See [my site](https://x.dev)", "Rotem <rotem@example.com>", "a <https://x.dev> link", "I led a team of 6.", "Next week works"]) assert.equal(placeholder(t), null, t);
+});
