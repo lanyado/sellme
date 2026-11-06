@@ -653,24 +653,65 @@ test("a schedule refuses what it can't do, and changes nothing", () => withSandb
 test("a check does nothing while paused, and two can't overlap", () => withSandbox(async () => {
   withState((s) => { s.paused = true; });
   let ran = 0;
-  const runner = async () => {
+  // Each lane says it got to the end, the way a real lane runs `sellme ran --lane <id>`.
+  const runner = async (prompt) => {
     ran += 1;
-    withState((s) => { s.last_run = `run ${ran}`; });
+    const lane = prompt.match(/ran --lane (\w+)/)[1];
+    withState((s) => { (s.lane_runs ??= {})[lane] = new Date().toISOString(); });
     return { ok: true, output: "done" };
   };
-  assert.equal((await scheduledRun({ runner })).skipped, "paused");
+  assert.equal((await scheduledRun({ runner, platform: "linux" })).skipped, "paused");
   assert.equal(ran, 0);
   withState((s) => { s.paused = false; });
-  assert.equal((await scheduledRun({ runner })).ok, true);
-  assert.equal(ran, 1);
+  assert.equal((await scheduledRun({ runner, platform: "linux" })).ok, true);
+  assert.equal(ran, 2, "email and LinkedIn, at the same time");
   assert.equal(load().schedule_last.ok, true);
+  assert.ok(load().last_run, "the check records the time once every lane is done");
   const inner = [];
-  await scheduledRun({ runner: async () => { inner.push(await scheduledRun({ runner })); return { ok: true, output: "" }; } });
+  await scheduledRun({ platform: "linux", runner: async () => { inner.push(await scheduledRun({ runner })); return { ok: true, output: "" }; } });
   assert.equal(inner[0].skipped, "already running");
-  const stoppedEarly = await scheduledRun({ runner: async () => ({ ok: true, output: "I couldn't read my instructions." }) });
+  const stoppedEarly = await scheduledRun({ platform: "linux", runner: async () => ({ ok: true, output: "I couldn't read my instructions." }) });
   assert.equal(stoppedEarly.ok, false, "a clean exit that never got to the end isn't a finished check");
-  assert.match(stoppedEarly.why, /before it finished/);
+  assert.match(stoppedEarly.why, /stopped before it finished/);
 }));
+
+test("a check runs one lane per channel at once, each with only its own contacts, and a new agent goes first", async () => {
+  const { checkLanes } = await import("../lib/schedule.js");
+  const s = freshState();
+  core.addAgent(s, "Fonzi");
+  core.addAgent(s, "Jack & Jill");
+  core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550002222" });
+  core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
+  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const lanes = checkLanes(s, { start: "Jack & Jill", platform: "darwin" });
+  assert.deepEqual(lanes.map((l) => l.id), ["websites", "email", "texts", "linkedin", "apps"]);
+  const lane = Object.fromEntries(lanes.map((l) => [l.id, l]));
+  assert.match(lane.websites.prompt, /Your contacts: Jack & Jill\./);
+  assert.match(lane.websites.prompt, /Jack & Jill was just connected: open that conversation first/);
+  assert.equal(lane.websites.chrome, true);
+  assert.equal(lane.email.chrome, false, "only the website lane takes Chrome");
+  assert.match(lane.email.prompt, /Your contacts: Lee Park\./);
+  assert.match(lane.texts.prompt, /Your contacts: Standout\./);
+  assert.match(lane.linkedin.prompt, /Your contacts: Ben Ford\./);
+  assert.match(lane.apps.prompt, /Your contacts: Fonzi\./);
+  assert.ok(lanes.every((l) => l.prompt.startsWith("/sellme run unattended") && l.prompt.includes(`sellme ran --lane ${l.id}`)));
+  assert.deepEqual(checkLanes(freshState(), { platform: "linux" }).map((l) => l.id), ["email", "linkedin"], "with no agents, it still looks for people who wrote");
+});
+
+test("a newly connected agent is marked to get its first message, and the mark goes once it has one", () => {
+  const s = freshState();
+  s.autopilot = false;
+  core.addAgent(s, "Fonzi");
+  assert.equal(s.agents[0].intro, true);
+  assert.equal(core.pushList(s).contacts[0].just_connected, true);
+  core.addDraft(s, { agent: "Fonzi", text: "Hi Fonzi, this is the AI agent for Maya. Any matches?", kind: "nudge" });
+  assert.equal(s.agents[0].intro, undefined);
+  core.addAgent(s, "Clera", { channel: "imessage", handle: "+15550003333", byRun: true });
+  assert.equal(s.agents.find((a) => a.name === "Clera").intro, undefined, "one a check found is already talking");
+  core.setConnection(s, "Clera", "access");
+  core.setConnection(s, "Clera", "ok");
+  assert.equal(s.agents.find((a) => a.name === "Clera").intro, true, "reachable at last, and never written to");
+});
 
 // ---------------------------------------------------------------- referrals
 test("every agent in the catalog has a referral slot, on by default", () => {
