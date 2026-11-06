@@ -410,7 +410,7 @@ test("the screen says what it needs, with whole links, and counts what's blockin
   assert.match(brief, /○ Jack & Jill\s+Sign up \(referral link\)  https:\/\/jackandjill\.ai\/refer/);
   assert.match(brief, /Click a link above/);
   const screen = shim("connect").stdout;
-  assert.match(screen, /What I need from you/);
+  assert.match(screen, /What SELLME needs from you/);
   assert.match(screen, /Sellme is free because/, "a referral link comes with the disclosure");
   assert.equal(JSON.parse(shim("brief", "--json", "--peek").stdout).connect[0].name, "Hedgy");
   assert.match(shim("connect", "Jack", "&", "Jill", "skip").stdout, /won’t ask about Jack & Jill/);
