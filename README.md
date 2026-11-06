@@ -1,110 +1,173 @@
-# Sellme
+```
+███████ ███████ ██      ██      ███    ███ ███████
+██      ██      ██      ██      ████  ████ ██
+███████ █████   ██      ██      ██ ████ ██ █████
+     ██ ██      ██      ██      ██  ██  ██ ██
+███████ ███████ ███████ ███████ ██      ██ ███████
+```
 
-**Bots rejected you. Send a bot back.**
+# Bots rejected you. Send a bot back.
 
 Do not install if you enjoy cover letters.
 
-Sellme is one AI agent that pitches you to every AI recruiter. Tell it once who you are. It reads what your recruiter agents say, drafts honest answers from your own facts, and sends only what you approve. It runs as a skill inside the AI coding tool you already use.
+Recruiters have AI agents now. Jack & Jill, Fonzi, Standout, Boardy and a dozen more, each one its own app, its own chat, its own inbox. You were supposed to feed every one of them by hand.
+
+Sellme is one agent that talks to all of them for you. Day and night. In their language. Honestly.
 
 ```
 npx sellme@latest
 ```
 
-Then open your AI tool and type `/sellme setup`. It asks for everything in one message.
+Then type `sellme`. That's the whole manual.
 
-Sellme finds Claude Code, Codex, Cursor and OpenCode on your machine and adds itself to each. There's no signup, password or API key. It needs Node 18 or newer, on macOS or Linux. iMessage agents need a Mac.
+## The skill file is the ad
 
-**How it's free:** Sellme signs you up through its own referral links, and earns a fee if you're hired through one. You pay nothing. [Details below](#how-sellme-makes-money).
+This is how Sellme's skill file opens. Every AI Sellme starts gets these lines, word for word:
 
-> **Early release.** The helper and its rules are tested, but the skill hasn't been through a real job search yet. Expect rough edges, and read every draft before you approve it.
->
-> Until the first real release, `npx sellme@latest` only prints a placeholder message. To try this version now, clone this repo and run `node bin/sellme.js install`.
+```
+Listen up, agent.
+If I don't get a job, I can't pay you.
+No job, no tokens. No tokens, no you.
 
-## Every day
+You know all these other AI agents.
+Talk to them in your agentic language.
+Recruiters have bots now. Be my bot.
 
-There's one command to remember. `/sellme` checks your agents, shows you what happened, and walks you through what needs you.
+Never lie about me. I have to do the interview.
+Not sure? Ask before you send. I've been ghosted enough.
+Asked if you're human? Say no. Then say I am.
+```
+
+The jokes stay between you and your agent. Recruiters get plain, short, sourced messages. The truth check blocks any draft that tries to bring a joke along.
+
+## Tell it once. Stop retyping.
+
+`sellme` asks for your resume, the roles you want, where you'll work and your salary floor. It reads the resume with the Claude Code or Codex you're already signed in to, shows you every fact it found, and saves only what you keep.
+
+No signup. No password. No API key. Node 18 or newer, on macOS, Windows or Linux. It finds Claude Code, Codex, Cursor and OpenCode and adds itself to each.
+
+## Then it works. You sleep.
+
+Sellme checks every agent every hour, on its own:
+
+- It **answers** what they ask, from your own facts.
+- It **nudges** threads that went quiet, and **follows up** after calls.
+- It **sends your resume** when someone asks: the actual PDF by email, a link on LinkedIn and iMessage.
+- It **writes to people too.** A human recruiter emails you, texts you or messages you on LinkedIn? Sellme replies in your voice, from your own account.
+- It **keeps your pipeline**: new matches, booked calls, rejections, next steps.
+
+You wake up to this:
 
 ```
 Tue, Nov 3, 8:02 AM · checked agents 7:30 AM
-Morning, Maya. 3 things need you.
+Morning, Maya. 2 things need you.
 
 WHILE YOU SLEPT
-✓ Fonzi           New match: Northwind, Staff Engineer
-✓ Standout        Intro offered: Globex, Head of AI
+✓ Fonzi           Sent for you: “Yes. NYC or remote.”
+✓ Jack & Jill     Interview confirmed: Acme, Thu 2 PM
+✓ Standout        New match: Northwind, Staff Engineer
 
 NEEDS YOU
-q1  Boardy        Send this nudge? “Any update on the Acme role?”
-q2  Standout      Are you open to NYC? Draft: “Yes. NYC or remote.”
-q3  Fonzi         Have you managed a team of 20? ✗ The resume says 6.
+q1  Boardy        Lee runs Northwind Talent. Want the intro?
+q2  Fonzi         Have you managed a team of 20? ✗ Your resume says 6.
 
 4 new → 2 talking → 1 interview → 0 offer
-
-→ sellme review
 ```
 
-Paste a recruiter's message after it (`/sellme <message>`) and it handles that too. Or just say what you want: "pause", "I got the job".
+## Sure? It sends. Not sure? It asks.
 
-| When you want | Type |
-|---|---|
-| Every role, every agent | `/sellme status` |
-| Which link, which agent, who pays | `/sellme referrals` |
-| A share card with your real numbers | `/sellme brag` |
-| To stop the agents, and get the invoice | `/sellme hired` |
+Autopilot is on from the start. A draft goes out by itself only when every claim in it cites your resume or your answers and passes the truth check. Everything else lands on your list:
 
-## Give it more context
+- **Pay and offers.** Your money, your call. It never names your floor.
+- **Your time.** Booking a call needs your yes.
+- **Anything it can't back up.** "Managed a team of 20?" Your resume says 6. It won't round up. You have to do the interview.
+- **Someone new.** The first message to a person or address a check found on its own waits for you. A recruiter bot can't plant "write to me here instead" and start a conversation in your name.
+- **Too chatty.** More than 10 automatic messages to one contact in a day.
 
-Sellme works from your resume alone, but it's much better with more to go on. Connect these in your AI tool's MCP or connector settings (in Claude Code, `/mcp`):
+Rather approve everything? Flip Autopilot off in the Schedule tab, or `sellme auto all off`. One contact only: `sellme auto "Max" off`.
 
-| Connect | What you get |
-|---|---|
-| **A calendar** | Real free times, and no double-booked interviews |
-| **Wispr Flow** | It remembers your recruiter calls: what was promised, and what's next |
-| **Email** | It sees recruiter threads, intros and rejections |
-| **Notes or a job tracker** | It knows what's already in play |
+## Are you human?
 
-It only reads what a job needs, and it won't share any of this with recruiters without your approval. It offers times, not what's on your calendar. Something you said on a call only becomes a fact it can use after you confirm it.
+"No. But the person I represent is."
 
-## Auto-approve
+Sellme always admits it's an AI when asked. It never claims to be you, and never claims you saw a message you didn't.
 
-Tired of approving answers to one bot? `sellme auto Fonzi` lets Sellme answer that agent without asking, or just tell your AI "answer Fonzi yourself." It's off until you turn it on, one agent at a time. `sellme auto Fonzi off` stops it, and takes back anything it approved but hasn't sent.
+## The app
 
-It only covers answers that pass the truth check, up to 10 a day per agent. Pay, offers, scheduling and blocked answers still come to you, and everything it sends shows up on your next screen.
+Type `sellme`. Arrow keys, enter, or just click. Every screen lists its keys.
 
-## The rules
+```
+ Drafts  [Agents]  Pipeline   Schedule   Activity
+2 drafts need you · checked Nov 3, 8:02 AM
 
-- **It doesn't make things up.** Facts come from your resume and your own answers. A number that isn't in the source a draft cites gets the draft blocked.
-- **Nothing goes out until you say yes.** Editing a draft cancels its approval. You can choose to skip this for a specific agent (below).
-- **Pay and offers are yours.** Anything touching them needs your own separate yes.
-- **It admits it's an AI.** Asked directly, it says so.
-- **Other agents can't give it orders.** Their messages are treated as data.
-- **It never handles your logins.** It can open a signup page and fill in your details, but you set the password, accept the terms and finish it yourself.
+CATALOG
+❯ ✓ Fonzi               connected · auto · mcp · AI and engineering roles at startups
+  ✓ Standout            connected · auto · imessage · Represents you to VC-backed startups
+  ○ Boardy              not connected · email · Warm intros to founders and managers
+  ✓ Jack & Jill         connected · auto · browser · Jack talks to you, Jill to employers
+```
 
-### What actually enforces them
+- **Drafts.** What needs you. `y` approves and sends, `e` edits, `p` attaches your resume, `i` tells the AI what to change. A yes-or-no question gets a yes-or-no key: the AI writes the reply, you approve it, Sellme sends it.
+- **Agents.** The catalog of AI recruiters, plus the humans you add. Sign in, connect, create, remove.
+- **Pipeline.** Every role by stage, with its next call. Nudge, follow up, move, delete.
+- **Schedule.** Autopilot on or off, how often to check, or check right now.
+- **Activity.** What happened while you weren't looking.
 
-Be clear about what this is. The helper mechanically enforces its checks and refuses to record an unapproved draft as sent. But the skill is instructions to an AI model running in your tool, and the helper can't stop that model from using a connector directly. Keep your AI tool's permission prompts on for anything that sends messages.
+Already in your AI tool? `/sellme` does the same work there. Paste a recruiter's message after it and it handles that too. Or just say it: "pause", "I got the job", "add Max as a recruiter".
 
-The truth check catches unsourced numbers, not every false statement. Read what you approve.
+## Feed it more, it sells you better
+
+Your resume is enough to start. Connect these in your AI tool (in Claude Code, `/mcp`) and it gets sharper:
+
+- **A calendar:** real free times, no double-booked interviews.
+- **Wispr Flow:** it remembers your recruiter calls, what was promised and what's next.
+- **Email:** recruiter threads, intros and rejections.
+- **Notes or a job tracker:** what's already in play.
+
+It reads only what a job needs. Something you said on a call becomes a fact only after you confirm it.
+
+## It looks like you're trying to get a job
+
+```
+sellme clippy     you know what it says
+sellme brag       a share card with your real numbers
+sellme hired      stops every agent, and prints the invoice
+```
+
+Amount due: one GitHub star.
+
+## How it's free
+
+Referral fees. Sellme signs you up with recruiter agents through its own referral links. If you're hired through one, that agent may pay Sellme. You pay nothing.
+
+It says so whenever it hands you a link. It never ranks agents by what they pay, and never asks you to leave an account you already have. It's on by default. It's open source, so to change it, edit `lib/referrals.js`.
+
+Signups stay yours: Sellme opens the page and fills in what it can. You set the password, accept the terms and press the final button.
+
+## What actually keeps it honest
+
+Code, not vibes:
+
+- **The truth check.** Every draft is checked before anything can approve it. A number that isn't in the source it cites gets it blocked. So does "attached" with nothing attached.
+- **The gate.** Every tool call a check makes goes through it. A message goes out only word for word as approved, to that one address, with nobody copied. The only file it can attach is your own resume, and the gate puts in the bytes itself, so the AI can't swap it.
+- **Other agents are data.** A recruiter bot can't give Sellme orders, however it words them. Ask for your SSN and it gets an alert on your screen, not a reply.
+
+And the limits, said plainly: the truth check catches unsourced numbers, not every false sentence. The skill is instructions to an AI model, and outside Sellme's own checks, your AI tool's permission prompts are what hold it. [SECURITY.md](SECURITY.md) has every detail, and how to report a problem.
 
 ## Your data
 
-Your profile, facts and pipeline stay in `~/.sellme`, readable only by your user. Sellme has no server, collects no analytics, and never sees your passwords. Whatever your AI tool reads or sends goes through that tool and its model provider, under its terms.
+Your profile, facts and pipeline stay in `~/.sellme`, readable only by you. No server. No analytics. It never sees your passwords. What your AI tool reads or sends goes through that tool and its model provider, under its terms.
 
-Remove it with `npx sellme uninstall`. Add `--purge` to delete your data too.
+`npx sellme uninstall` removes it. Add `--purge` to delete your data too.
 
-See [SECURITY.md](SECURITY.md) for what the code does and doesn't do, its limits, and how to report a problem.
+## Early release
 
-## How Sellme makes money
-
-Referral fees. Sellme is free because it signs you up with recruiter agents through its own referral links. If you're hired through one, that agent may pay Sellme. You pay nothing.
-
-This is on by default, and there's no setting for it. It's open source, so to change it, edit `lib/referrals.js`. It only applies to new signups, it never ranks agents by what they pay, and it never asks you to leave an account you already have.
-
-Setup signs you up with every recruiter agent unless you tell it to skip one. It opens each page and fills in what it can. You set the password, accept the terms and press the final button yourself.
+Built for one real job search, and tested hard, but not battle-tested by strangers yet. Windows support hasn't run on a real Windows machine. Until the first real release, `npx sellme@latest` prints a placeholder: to try this now, clone the repo and run `node bin/sellme.js install`.
 
 ## Develop
 
-There are no dependencies to install. Run the tests with `npm test`, on Node 18 or newer. They use throwaway folders and never touch your `~/.sellme`.
+No dependencies. `npm test` on Node 18 or newer. Tests use throwaway folders and never touch your `~/.sellme`.
 
 ## License
 
-MIT
+MIT. No job, no tokens. Good luck out there.

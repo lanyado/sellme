@@ -8,7 +8,7 @@ Make this quick: one message from you, one from them, and they're done. Don't as
 > 2. Roles you want
 > 3. Your salary floor (it stays private)
 > 4. Where you'll work
-> 5. I'll sign you up with every recruiter agent: Fonzi, Standout, Boardy, Jack & Jill and Hedgy. Tell me which ones you already use, and any you want to skip.
+> 5. I'll sign you up with every recruiter agent in my catalog, like Fonzi, Standout, Boardy and Jack & Jill. Tell me which ones you already use, and any you want to skip.
 >
 > Sellme is free because it signs you up through its own referral links. If you're hired through one, that recruiter agent may pay Sellme. You pay nothing.
 >
@@ -69,18 +69,19 @@ Save each company that shouldn't hear about their search with `--stage passed`. 
 | Boardy | email | `{{SELLME}} agent add Boardy --handle "<its exact address>"` |
 | Jack & Jill | browser | `{{SELLME}} agent add "Jack & Jill"` |
 | Hedgy | browser | `{{SELLME}} agent add Hedgy` |
+| Clera | iMessage (needs a Mac) | `{{SELLME}} agent add Clera --handle "<its exact number>"`. Its site lists +1 650-539-7073; use the number from their own thread if it differs. |
+| Everyone else in `{{SELLME}} agents --json` | browser | `{{SELLME}} agent add "<name>"` |
 | Anything else | ask how it talks | `{{SELLME}} agent add "<name>" --channel mcp|imessage|email|browser [--handle "<address>"]` |
 
-Use the handle they gave you. If they didn't give one, copy it from their real thread with that agent and show it to them. Never guess one. Then check you can actually reach each one using this tool's connectors (see `channels.md`), and say plainly which you can't.
+Use the handle they gave you. If they didn't give one, copy it from their real thread with that agent and show it to them. Never guess one. Then check you can actually reach each one using this tool's connectors (see `channels.md`), and record each result with `{{SELLME}} connect "<agent>" ok|signin|access|connector`. Record anything they said to skip with `{{SELLME}} connect "<agent>" skip`.
 
 ## 4. Finish
 
-Run `{{SELLME}} doctor`, then tell them:
+Run `{{SELLME}} doctor`. Record each of calendar, Wispr Flow, email and notes you can't see with `{{SELLME}} connect "<name>" connector --reason "<what connecting it adds>"`. Then run `{{SELLME}} connect`, show it as is, and repeat its items with clickable links, so everything they still have to do is in one place. Then tell them:
 
-- Which of calendar, Wispr Flow, email and notes you can see, and what connecting the missing ones would add (see `context.md`). Keep it to one line each.
 - Their data is in a private local file. What you send out goes through the AI tool they use, under its terms.
 - Nothing goes out until they approve it, unless they later choose auto-approve for a specific agent.
 - Type `/sellme` any time. It checks the agents and shows what needs them. That's the only command they need.
-- To run it on a schedule, they can use this tool's scheduler to run `/sellme run`. It only runs while the computer is awake, and it uses their AI plan. It sends only what they've already approved, or answers to agents they put on auto-approve.
+- To have it check on its own, they can pick how often in the app's Schedule tab, or type `sellme schedule daily`. It only runs while the computer is awake, and it uses their Claude Code plan. It sends only what they've already approved, or answers to agents they put on auto-approve.
 
 Don't set up a schedule unless they ask.

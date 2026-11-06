@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { freshState } from "../lib/store.js";
+import { freshState as newState } from "../lib/store.js";
+// These tests check the approval gate itself, so autopilot is off unless a test turns it on.
+const freshState = () => ({ ...newState(), autopilot: false });
 import { check, isHumanQuestion, numbers, sameCompany } from "../lib/truth.js";
 
 function state() {
@@ -285,4 +287,45 @@ test("logistics pass without a source", () => {
 test("a company name with a digit isn't read as a claim", () => {
   const s = state();
   assert.equal(check(s, { text: "Any update from 3M?", kind: "nudge", company: "3M" }).result, "ok");
+});
+
+test("a range of times is logistics, not an unsourced number", () => {
+  const s = state();
+  for (const text of ["I'm free Wed Nov 11, 1 to 4 PM ET, or Thu 10am-1pm.", "Any time 9:30 – 11:00 am works."]) {
+    const r = check(s, { agent: "Fonzi", kind: "slot", text, sources: [] });
+    assert.ok(!r.reasons.some((x) => x.code === "unsourced_number"), `${text}: ${JSON.stringify(r.reasons)}`);
+  }
+  // A number that isn't a time still needs a source.
+  assert.ok(check(s, { agent: "Fonzi", kind: "slot", text: "Free 1 to 4 PM. I led 20 engineers.", sources: [] }).reasons.some((x) => x.code === "unsourced_number"));
+});
+
+test("open drafts are checked again with today's rules, and nothing gets approved by it", async () => {
+  const core = await import("../lib/core.js");
+  const s = state();
+  core.addAgent(s, "Fonzi");
+  const q = core.addDraft(s, { agent: "Fonzi", kind: "slot", text: "Free Wed 1 to 4 PM.", sources: [] });
+  q.status = "blocked";
+  q.check = { result: "blocked", reasons: [{ code: "unsourced_number", message: "old rule" }] };
+  assert.equal(core.recheckOpen(s), 1);
+  assert.equal(q.status, "pending");
+  assert.ok(!q.check.reasons.some((r) => r.code === "unsourced_number"));
+  assert.equal(q.approved_at, null);
+  assert.equal(core.recheckOpen(s), 0, "a second pass changes nothing");
+});
+
+test("a yes or no pressed in the app backs that answer, but never a number, and a run can't claim it", async () => {
+  const core = await import("../lib/core.js");
+  const s = freshState();
+  core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
+  const q = core.addBlock(s, { agent: "Boardy", asked: "Want the intro to Lee?", reason: "Only you can say." });
+  core.applyRewrite(s, q.id, { text: "Yes, please. Rotem would welcome the intro.", sources: [], was: null }, { choice: true });
+  assert.equal(q.status, "pending");
+  assert.deepEqual(q.sources, ["user.choice"]);
+  const r = core.addBlock(s, { agent: "Boardy", asked: "How many people did you manage?", reason: "No source." });
+  core.applyRewrite(s, r.id, { text: "Yes, Rotem managed 20 people.", sources: ["user.choice"], was: null }, { choice: true });
+  assert.equal(r.status, "blocked");
+  const t = core.addBlock(s, { agent: "Boardy", asked: "Worth a chat?", reason: "Only you can say." });
+  core.applyRewrite(s, t.id, { text: "Yes, happy to chat.", sources: ["user.choice"], was: null });
+  assert.equal(t.status, "blocked"); // Only the app's yes or no counts, not the AI saying so.
+  assert.throws(() => core.addDraft(s, { agent: "Boardy", asked: "Intro?", text: "Yes.", sources: ["user.choice"] }), /Only the user/);
 });
