@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
-import { activityRows, chatLink, draftLine, flightFrame, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, chatLink, draftLine, liveLine, flightFrame, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -1171,4 +1171,25 @@ test("an email reply goes in its thread with reply-all, never as a new email, an
   const noThread = core.addDraft(s, { agent: "Lee Park", asked: "Free Friday?", text: "Friday works.", kind: "nudge" });
   core.approve(s, noThread.id);
   assert.match(fastPlan(core.outbox(s).find((o) => o.id === noThread.id)).prompt, /search_threads[\s\S]*thread q\d+ <that message id>[\s\S]*"replyAll": true/);
+});
+
+test("a check knows who to push next: when each contact last heard from the user, and calls that just happened", () => {
+  const s = freshState();
+  core.addAgent(s, "Fonzi");
+  core.addRecruiter(s, "Sam Rivera", { handle: "+15550111" });
+  const q = core.addDraft(s, { agent: "Sam Rivera", text: "Hi Sam, any update?", kind: "nudge" });
+  core.approve(s, q.id);
+  core.markSent(s, q.id);
+  core.addRole(s, { company: "Acme", agent: "Fonzi", stage: "interview" });
+  s.roles[0].next_call = new Date(Date.now() - 3 * 3600_000).toISOString();
+  core.addRole(s, { company: "Gone", agent: "Fonzi", stage: "rejected" });
+  s.roles[1].next_call = new Date(Date.now() - 3 * 3600_000).toISOString();
+  const push = core.pushList(s);
+  assert.deepEqual(push.contacts.map((x) => [x.agent, Boolean(x.last_sent), x.person]), [["Fonzi", false, false], ["Sam Rivera", true, true]]);
+  assert.deepEqual(push.calls_to_follow_up.map((x) => x.company), ["Acme"], "a rejected role gets no follow-up");
+});
+
+test("the live line says it's selling you, what it's reading, and for how long", () => {
+  const line = liveLine(0, 1000, ["Reading iMessage", "Reading Fonzi"], c, 43_000);
+  assert.match(line, /Selling you to every agent · Reading Fonzi 0:42$/);
 });
