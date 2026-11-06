@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
-import { activityRows, chatLink, draftLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, chatLink, draftLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -1371,4 +1371,27 @@ test("an email reads like one: greeting, body and sign-off on their own lines, w
   assert.equal(mail.text, mail.approved_text, "what's approved is what's sent");
   assert.equal(sms.approved_text, "Hi Ben, happy to chat. Best, Sam", "a text stays one line");
   assert.deepEqual(card(mail, palette(false), "", 60).split("\n").filter((l) => /Lee,|Happy|Best|Sam/.test(l)).map((l) => l.replace(/^\s*│\s*/, "")), ["Hi Lee,", "Happy to chat.", "Best,", "Sam"]);
+});
+
+test("a long card scrolls with its choices pinned, and starts at the top", () => {
+  const lines = Array.from({ length: 40 }, (_, i) => `line ${i}`);
+  const first = scrolled(lines, 12, 0);
+  assert.equal(first.shown.length, 12); // Always the same height, so the choices under it never jump.
+  assert.equal(first.shown[0], "");
+  assert.equal(first.shown[1], "line 0");
+  assert.equal(first.shown.at(-1), "  ↓ 30 more lines");
+  const last = scrolled(lines, 12, 999);
+  assert.equal(last.top, 30);
+  assert.equal(last.shown[0], "  ↑ 30 more lines");
+  assert.equal(last.shown.at(-2), "line 39");
+  assert.equal(last.shown.at(-1), "");
+  assert.deepEqual(scrolled(["a", "b"], 12, 5), { shown: ["a", "b"], top: 0, max: 0 });
+});
+
+test("the wheel scrolls a few lines and PgUp/PgDn a screen", () => {
+  assert.equal(scrollBy("wheelup", 20), -3);
+  assert.equal(scrollBy("wheeldown", 20), 3);
+  assert.equal(scrollBy("pagedown", 20), 17);
+  assert.equal(scrollBy("pageup", 20), -17);
+  assert.equal(scrollBy("up", 20), 0); // Arrows still move the choice.
 });
