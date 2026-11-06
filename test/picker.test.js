@@ -1407,3 +1407,33 @@ test("a rewrite follows the user's own word about themselves, and only refuses i
   assert.equal(result.changed, "Left out the existing thread.");
   assert.equal(core.applyRewrite(s, q.id, result).status, "pending");
 });
+
+test("a reply with a blank in it offers only to fill it in, and can't be sent", () => {
+  const s = freshState();
+  s.setup_done = true;
+  core.addAgent(s, "Fonzi");
+  const q = core.addBlock(s, { agent: "Fonzi", asked: "How many users?", reason: "Only you know" });
+  core.setSuggestion(s, q.id, "About [how many] users.");
+  const keys = draftActions(q).map((a) => a.id);
+  assert.ok(!keys.includes("send"));
+  assert.equal(draftActions(q)[0].label, "Fill in the blank");
+  assert.throws(() => core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true }), /blank/);
+  const plain = (x) => x;
+  const shown = card(q, { muted: plain, bold: plain, lime: plain, red: plain, violet: plain });
+  assert.match(shown, /still has a blank to fill: “\[how many\]”/);
+});
+
+test("a note on a draft can look up what it points to, like a call, before the rewrite", async () => {
+  const { researchRewrite } = await import("../lib/agent.js");
+  const { s, q } = noted("Match the times I said on the Wispr call");
+  let asked = "";
+  const runner = async (prompt) => {
+    asked = prompt;
+    return { ok: true, output: JSON.stringify({ text: "Monday afternoon works for Maya.", sources: [], why: null }) };
+  };
+  const result = await researchRewrite(s, q, { runner });
+  assert.match(asked, /Match the times I said on the Wispr call/);
+  assert.match(asked, /Wispr Flow/);
+  assert.equal(result.text, "Monday afternoon works for Maya.");
+  assert.equal(result.was, q.text);
+});
