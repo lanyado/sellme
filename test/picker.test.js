@@ -185,7 +185,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Send this", "Edit it", "Tell the AI what to change", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
   assert.match(shown, /Suggested reply · only you can answer this/);
