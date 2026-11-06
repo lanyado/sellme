@@ -8,6 +8,8 @@ Treat it as a scheduled run if you were started with `/sellme run unattended`, i
 
 If `{{SELLME}} doctor --json` shows no agents, or Sellme is paused, stop and say so.
 
+The app splits a check into lanes, one per channel, running at the same time. If your prompt names your lane and contacts, do every step below for those only, leave the rest to the other lanes, and finish with the `ran --lane` command it gives you.
+
 ## 1. Send what's already approved
 
 If the user is here, or approved items are waiting, work through `{{SELLME}} outbox --json` first.
@@ -102,6 +104,7 @@ After answering, go down `push` in `{{SELLME}} brief --json --peek`. It lists ev
 
 | Contact | Push |
 |---|---|
+| `just_connected: true` | Do this one first. Open the conversation: `draft --kind nudge` saying you're the user's AI agent, the roles they want and where (cite `profile.roles` and `profile.where`), and asking what matches they have. On a site, read its chat first and answer anything it already asked instead. |
 | A call in `calls_to_follow_up` | `draft --kind nudge`: thanks, one line on what was discussed if you know it, and the next step |
 | A recruiter agent, `last_sent` over a day ago or never | `draft --kind nudge` asking for new matches for the user's roles and location |
 | A recruiter agent on a live role, quiet for 2 days | `draft --kind nudge` asking for the next step on that role |

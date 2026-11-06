@@ -578,3 +578,12 @@ test("simultaneous writes don't lose data", async () => {
   assert.equal(state.facts.length, 12);
   assert.equal(new Set(state.facts.map((f) => f.id)).size, 12);
 });
+
+test("every flag the skill or README tells anyone to use is one the helper accepts", async () => {
+  const { parseArgs } = await import("../lib/cli.js");
+  const ROOT = path.resolve(path.dirname(BIN), "..");
+  const files = ["README.md", ...fs.readdirSync(path.join(ROOT, "skill"), { recursive: true }).filter((f) => f.endsWith(".md")).map((f) => path.join("skill", f))];
+  const flags = new Set(files.flatMap((f) => [...fs.readFileSync(path.join(ROOT, f), "utf8").matchAll(/(?:`|\s)--([a-z][a-z-]*)/g)].map((m) => m[1])));
+  assert.ok(flags.has("thread") && flags.has("attach") && flags.has("suggest") && flags.has("lane"));
+  for (const flag of flags) assert.doesNotThrow(() => parseArgs(["draft", `--${flag}`, "x"]), `--${flag}`);
+});
