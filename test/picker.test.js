@@ -66,9 +66,9 @@ test("the app's tabs show what's going on", () => {
   assert.match(summary(s), /^2 drafts need you · 1 to connect · 1 alert · checked /);
   const drafts = draftRows(s);
   assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["○", "✗"]);
-  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "copy", "skip", "back"], "no resume option when nobody's talking about one");
-  assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "instruct", "skip", "back"]);
-  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "copy", "skip", "back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "talk", "copy", "skip", "back"], "no resume option when nobody's talking about one");
+  assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "instruct", "talk", "skip", "back"]);
+  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "talk", "copy", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].alert, true);
   assert.equal(summary(freshState()), "Nothing needs you. SELLME is selling you · not checked yet");
@@ -185,7 +185,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Copy the reply", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Talk it over with SELLME", "Copy the reply", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
   assert.match(shown, /Suggested reply · only you can answer this/);
@@ -1517,4 +1517,78 @@ test("a reply can be copied to the clipboard", async () => {
   assert.equal(await copyText("Hi", { platform: "linux", run }), true, "falls back to xclip");
   assert.deepEqual(got.at(-1), ["xclip", "Hi"]);
   assert.equal(await copyText("Hi", { platform: "sunos", run }), false);
+});
+
+test("when the Send click went through but the read-back missed it, a read-only look settles it", () => withSandbox(async () => {
+  const { sendOutbox, seeDelivered } = await import("../lib/agent.js");
+  const text = "Hi Nicholas, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
+  withState((s) => {
+    Object.assign(s, { setup_done: true });
+    core.addRecruiter(s, "Nicholas Fischer", { handle: "linkedin.com/in/nf-test" });
+    const q = core.addDraft(s, { agent: "Nicholas Fischer", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
+    if (q.status !== "approved") core.approve(s, q.id);
+  });
+  const id = load().queue[0].id;
+  const looks = [];
+  const runner = (onPage) => async (prompt, { run, fast }) => {
+    if (prompt.startsWith("Check whether")) {
+      looks.push(fast.tools);
+      seeDelivered({ tool_name: "mcp__claude-in-chrome__get_page_text", tool_response: { content: [{ type: "text", text: onPage }] } }, run);
+      return { ok: true, output: "there" };
+    }
+    withState((s) => {
+      const q = s.queue.find((x) => x.id === id);
+      q.send_cleared = q.send_confirmed = { run, ts: new Date().toISOString() };
+    });
+    return { ok: true, output: "failed: the conversation still shows only their message" };
+  };
+  const missing = await sendOutbox(id, { runner: runner("Nicholas: Forward Deployed Engineers needed") });
+  assert.equal(missing.sent, false, "not in the conversation: still not sent");
+  assert.ok(!looks[0].some((t) => /computer/.test(t)), "the look can't type or click");
+  const there = await sendOutbox(id, { runner: runner(`Nicholas: needed for 12 months\nRotem Lanyado 9:51 PM\n${text}`) });
+  assert.equal(there.sent, true);
+  assert.equal(load().queue[0].status, "sent");
+}));
+
+test("trying again after an unseen click looks first, so the message can't go twice", () => withSandbox(async () => {
+  const { sendOutbox, seeDelivered } = await import("../lib/agent.js");
+  const text = "Hi Nicholas, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
+  withState((s) => {
+    Object.assign(s, { setup_done: true });
+    core.addRecruiter(s, "Nicholas Fischer", { handle: "linkedin.com/in/nf-test" });
+    const q = core.addDraft(s, { agent: "Nicholas Fischer", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
+    if (q.status !== "approved") core.approve(s, q.id);
+    Object.assign(q, { send_cleared: { run: "old", ts: new Date(Date.now() - 600_000).toISOString() }, send_confirmed: { run: "old", ts: new Date().toISOString() } });
+  });
+  const id = load().queue[0].id;
+  const prompts = [];
+  const runner = async (prompt, { run }) => {
+    prompts.push(prompt.split("\n")[0]);
+    seeDelivered({ tool_name: "mcp__claude-in-chrome__get_page_text", tool_response: { content: [{ type: "text", text }] } }, run);
+    return { ok: true, output: "there" };
+  };
+  assert.equal((await sendOutbox(id, { runner })).sent, true);
+  assert.deepEqual(prompts, ["Check whether one message already went out. Only read: never type, click or press anything."], "only the look ran, never the send");
+}));
+
+test("talking a draft over: SELLME knows the draft, the check and the talk so far, and a change still gets checked", async () => {
+  const { chatPrompt, parseChat, chatTurn } = await import("../lib/rewrite.js");
+  const s = freshState();
+  s.setup_done = true;
+  s.profile = { ...s.profile, name: "Maya Test", where: "NYC", floor: "$987K" };
+  core.addAgent(s, "Fonzi");
+  const q = core.addDraft(s, { agent: "Fonzi", asked: "Interested? Range is 160-90k.", text: "Yes. I read the range as $160k to $190k.", sources: ["profile.where"] });
+  const history = [{ who: "you", text: "why is this flagged?" }];
+  const prompt = chatPrompt(s, q, history);
+  assert.match(prompt, /Current draft: Yes\. I read the range/);
+  assert.match(prompt, /The check says: .*pay/);
+  assert.match(prompt, /User: why is this flagged\?/);
+  assert.doesNotMatch(prompt, /987K/, "the floor never reaches the AI");
+  assert.deepEqual(parseChat('{"say": "It mentions pay.", "text": null}', s, q), { say: "It mentions pay.", text: null, sources: [] });
+  const changed = parseChat('{"say": "Shorter now.", "text": "Yes, glad to talk.", "sources": ["profile.where", "made-up"]}', s, q);
+  assert.equal(changed.text, "Yes, glad to talk.");
+  assert.ok(!changed.sources.includes("made-up"));
+  assert.match(parseChat("not json", s, q).refused, /form I could read/);
+  const turn = await chatTurn(s, q, history, { tool: { id: "claude", name: "Claude Code", args: [] }, run: async () => '{"say": "Because it talks pay."}' });
+  assert.equal(turn.say, "Because it talks pay.");
 });
