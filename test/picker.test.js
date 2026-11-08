@@ -1477,3 +1477,28 @@ test("a note on a draft can look up what it points to, like a call, before the r
   assert.equal(result.text, "Monday afternoon works for Maya.");
   assert.equal(result.was, q.text);
 });
+
+test("after a message to an agent that answers fast, a short run stays in that one conversation", async () => {
+  const { checkLanes, scheduledRun } = await import("../lib/schedule.js");
+  const s = freshState();
+  core.addAgent(s, "Jack & Jill");
+  core.addAgent(s, "Fonzi");
+  core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
+  const lanes = checkLanes(s, { platform: "darwin", follow: "jack & jill" });
+  assert.deepEqual(lanes.map((l) => l.id), ["websites"]);
+  assert.match(lanes[0].prompt, /Your contacts: Jack & Jill\./);
+  assert.match(lanes[0].prompt, /sellme wait 45/);
+  assert.match(lanes[0].prompt, /up to three rounds/);
+  assert.match(lanes[0].prompt, /don't run `sellme ran`/);
+  assert.deepEqual(checkLanes(s, { follow: "Nobody" }), []);
+  assert.ok(core.answersFast(s.agents[0]) && !core.answersFast(core.findAgent(s, "Lee Park")), "never a person");
+  await withSandbox(async () => {
+    withState((st) => Object.assign(st, { agents: s.agents, setup_done: true }));
+    const prompts = [];
+    const result = await scheduledRun({ platform: "linux", follow: "Jack & Jill", runner: async (p) => (prompts.push(p), { ok: true, output: "Jack answered." }) });
+    assert.deepEqual(result, { followed: "Jack & Jill", ok: true });
+    assert.equal(prompts.length, 1);
+    assert.ok(!load().last_run, "a follow-up isn't the hourly check");
+  });
+  assert.match(liveLine(0, Date.now(), ["Waiting for their answer"], palette(false), Date.now(), "Jack & Jill"), /Talking with Jack & Jill · Waiting for their answer/);
+});

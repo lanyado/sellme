@@ -548,3 +548,8 @@ test("a copy of a message that already went out is dropped, not left stuck", () 
   assert.equal(copy.status, "skipped");
   assert.match(s.notes.at(-1).text, /Already sent as q1/);
 });
+
+test("a run may wait a moment for a fast agent's answer", async () => {
+  const { gate } = await import("../lib/agent.js");
+  assert.equal(gate({ tool_name: "Bash", tool_input: { command: "sellme wait 45" } }, state(), { run: "r" }).decision, "allow");
+});
