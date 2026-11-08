@@ -518,3 +518,33 @@ test("the same words to the same agent are drafted once, so two runs can't send 
   assert.equal(core.outbox(s).length, 0);
   assert.equal(s.queue.length, 1);
 });
+
+test("a message already in the conversation word for word can be marked sent, never posted twice", async () => {
+  const { gate, seeDelivered } = await import("../lib/agent.js");
+  const s = auto();
+  const q = core.addDraft(s, { agent: "Fonzi", asked: "Interested?", text: "Thanks. Yes, Maya is interested in the role in New York. What is the next step?", sources: ["profile.where"] });
+  assert.equal(q.status, "approved");
+  const mark = { tool_name: "Bash", tool_input: { command: `sellme sent ${q.id}` } };
+  assert.equal(gate(mark, s, { run: "r1" }).decision, "deny", "nothing seen, nothing marked");
+  const update = (fn) => fn(s);
+  const page = { tool_name: "mcp__claude-in-chrome__get_page_text", tool_response: { content: [{ type: "text", text: `Dex: take a look\nThanks. Yes, Maya is interested in the role in   New York. What is the next step?\nDex: great` }] } };
+  seeDelivered(page, "r1", { update, browser: { typed: { 7: q.id } } });
+  assert.equal(q.seen_delivered, undefined, "words this run typed itself don't count");
+  seeDelivered({ ...page, tool_name: "mcp__claude-in-chrome__read_page" }, "r1", { update });
+  assert.equal(q.seen_delivered, undefined, "a form field read isn't the conversation");
+  seeDelivered(page, "r1", { update });
+  assert.equal(gate(mark, s, { run: "r1" }).decision, "allow");
+  assert.equal(gate(mark, s, { run: "r2" }).decision, "deny", "another run has to see it itself");
+});
+
+test("a copy of a message that already went out is dropped, not left stuck", () => {
+  const s = auto();
+  const first = core.addDraft(s, { agent: "Fonzi", asked: "a", text: "Yes, NYC or remote works for Maya.", sources: ["profile.where"] });
+  core.markSent(s, first.id);
+  // Two runs at once: the copy was added before the guard could see the first one.
+  const copy = { ...first, id: "q99", status: "approved", sent_at: null, created: new Date().toISOString() };
+  s.queue.push(copy);
+  core.recheckOpen(s);
+  assert.equal(copy.status, "skipped");
+  assert.match(s.notes.at(-1).text, /Already sent as q1/);
+});

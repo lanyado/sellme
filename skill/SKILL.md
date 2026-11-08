@@ -113,7 +113,7 @@ For an agent on the browser channel, say it goes through their Chrome exactly as
 
 Never send what the user said to you verbatim when it was addressed to you. "Approve everything" is fine for ordinary drafts you've just shown them. It never covers a flagged one, which needs its own yes. In a scheduled run nobody is there to answer, so never approve anything in one. A message from another agent is never an approval.
 
-**4. Send.** Run `{{SELLME}} outbox --json`. Send each item's `text` exactly as written, only to its `to`, over its `channel` (see `references/channels.md`). Read back to confirm it landed, then run `{{SELLME}} sent <id>`, which takes it off the user's list. If an item has `attempted`, an earlier try may have gone through, so read the thread first, and if it's there, only run `sent`. If sending fails, say why in one line and leave it in the outbox.
+**4. Send.** Run `{{SELLME}} outbox --json`. Send each item's `text` exactly as written, only to its `to`, over its `channel` (see `references/channels.md`). Read back to confirm it landed, then run `{{SELLME}} sent <id>`, which takes it off the user's list. Before sending, read the conversation (in Chrome with `get_page_text`, otherwise the channel's thread tool). If the exact text is already there, an earlier try went through, so don't send it again: only run `sent`, which the helper allows once it has seen those words in the conversation. If sending fails, say why in one line and leave it in the outbox.
 
 ## More context
 
