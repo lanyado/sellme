@@ -45,7 +45,7 @@ A job tool waits for you. You search, it finds; you ask, it drafts; you forget, 
 
 Recruiters have AI agents now: Jack &amp; Jill, Fonzi, Standout, Boardy and a dozen more, each with its own app, chat and inbox. SELLME talks to all of them in their language, and to the humans in yours. It fights for you 24/7, 365 days a year, until the offer.
 
-## 🧠 The skill file is the ad
+## 🧠 What every SELLME agent hears first
 
 <p align="center">
   <img src="assets/skill.svg" alt="Listen up, agent. If I don't get a job, I can't pay you. No job, no tokens. No tokens, no you." width="100%">

@@ -55,7 +55,7 @@ function logoRects(x0, y0, cw, ch) {
   const gap = () => { y += lh * 0.55; };
   // parts: [text, color, weight?]
   line([["[Drafts]", LIME, 700], ["  Agents   Pipeline   Schedule   Activity", MUTED]]);
-  line([["2 drafts need you · 3 sent for you · checked 8:02 AM", MUTED]]);
+  line([["Getting you hired: 2 interviews, 5 talking · 2 drafts need you · checked 8:02 AM", MUTED]]);
   const liveY = y; line([["  ", TEXT], ["Selling you to every agent", TEXT, 700], [" · Reading Jack & Jill  0:12", MUTED]]);
   gap();
   line([["NEEDS YOU", MUTED]]);
