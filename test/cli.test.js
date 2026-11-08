@@ -270,7 +270,8 @@ test("auto-approve through the real command", () => {
   assert.equal(shim("sent", "q1").status, 0);
   assert.match(shim().stdout, /Sent for you: “Yes\.”/);
   shim("auto", "Jack", "&", "Jill", "off");
-  assert.match(shim("draft", "--agent", "Jack & Jill", "--asked", "NYC?", "--text", "Yes.", "--source", "profile.where").stdout, /waiting for approval/);
+  assert.match(shim("draft", "--agent", "Jack & Jill", "--asked", "NYC?", "--text", "Yes.", "--source", "profile.where").stdout, /already sent these exact words/, "the same words twice in a day are one message");
+  assert.match(shim("draft", "--agent", "Jack & Jill", "--asked", "NYC?", "--text", "Yes, NYC.", "--source", "profile.where").stdout, /waiting for approval/);
   assert.match(fs.readFileSync(path.join(dir, ".sellme/log.jsonl"), "utf8"), /"event":"auto"/);
   assert.equal(shim("auto", "Nobody").status, 1);
 });

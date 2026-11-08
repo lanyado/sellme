@@ -86,6 +86,8 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 
 **Next calls.** For each role in `talking` or `interview`, find the next call with that company, in the user's calendar if you have it and in their threads. Record it with `{{SELLME}} role set <id> --next-call "<ISO date and time>"`, or take it off with `--next-call none` if it was cancelled. Use only a real calendar event or a time both sides confirmed, never a proposed one.
 
+**Drafts that went stale.** An open draft that agrees to or offers a time that has now passed ("see you tomorrow at 10", once that morning is over) can't go out as is. Mark it with `{{SELLME}} handled <id> --reason "the time it offers has passed"`, and if a reply is still needed, draft a new one.
+
 Before suggesting a time, look for an existing call with the same company or person. Companies often send their own scheduling link for a screen that's already booked.
 
 Notes look like this:
@@ -94,7 +96,7 @@ Notes look like this:
 {{SELLME}} note --agent Fonzi --text "New match: Northwind, Staff Engineer"
 ```
 
-Keep each one to a few words, since it has to fit on one line.
+Keep each one to a few words, since it has to fit on one line. A note is news: something new, sent or changed. When your lane found nothing new, or hit the same block as last time (check `{{SELLME}} notes`), don't add a note. Activity fills up with "nothing new" otherwise, and the real news gets lost.
 
 Use dates as the message gives them. If "Thu" could mean two different days, say so in the note.
 

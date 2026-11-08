@@ -14,7 +14,8 @@ function state() {
   core.addAgent(s, "Fonzi");
   return s;
 }
-const ok = (s) => core.addDraft(s, { agent: "Standout", asked: "NYC?", text: "Yes. NYC or remote.", sources: ["profile.where"] });
+// Each one says something new: the same words twice are one draft.
+const ok = (s) => core.addDraft(s, { agent: "Standout", asked: "NYC?", text: `Yes. NYC or remote.${" Thanks.".repeat(s.queue.length)}`, sources: ["profile.where"] });
 
 test("a draft can't be marked sent without approval", () => {
   const s = state();
@@ -207,7 +208,8 @@ test("auto-approve never covers lies, pay, offers or scheduling", () => {
 
 test("auto-approve stops at the daily limit, so two bots can't loop forever", () => {
   const s = auto();
-  const send = () => core.addDraft(s, { agent: "Fonzi", asked: "NYC?", text: "Yes. NYC or remote.", sources: ["profile.where"] });
+  let n = 0;
+  const send = () => core.addDraft(s, { agent: "Fonzi", asked: "NYC?", text: `Yes. NYC or remote.${" Really.".repeat(++n)}`, sources: ["profile.where"] });
   for (let i = 0; i < core.AUTO_DAILY_LIMIT; i++) assert.equal(send().status, "approved");
   const over = send();
   assert.equal(over.status, "pending");
@@ -241,7 +243,7 @@ test("a new address from a check needs the user's yes once before Sellme writes 
   assert.equal(first.status, "approved", "the user's own address goes by itself");
   core.addAgent(s, "Standout", { handle: "+15559999", byRun: true });
   assert.equal(first.status, "pending", "approvals for the old address are taken back");
-  const next = core.addDraft(s, { agent: "Standout", asked: "Remote?", text: "Yes, NYC or remote.", sources: ["profile.where"] });
+  const next = core.addDraft(s, { agent: "Standout", asked: "Remote?", text: "Yes, remote works too.", sources: ["profile.where"] });
   assert.equal(next.status, "pending");
   assert.match(next.check.reasons.at(-1).message, /first message to Standout at \+15559999/);
   core.approve(s, next.id);
@@ -502,4 +504,17 @@ test("removing an agent clears what it needed", () => {
 
 test("a missing id gets a useful error", () => {
   assert.throws(() => core.skip(state(), undefined), /Which draft\?/);
+});
+
+test("the same words to the same agent are drafted once, so two runs can't send them twice", () => {
+  const s = auto();
+  const first = core.addDraft(s, { agent: "Fonzi", asked: "Track these?", text: "Please track these roles.", sources: ["profile.where"] });
+  assert.equal(first.status, "approved");
+  const again = core.addDraft(s, { agent: "Fonzi", asked: "Offered new matches", text: "Please  track these roles. ", sources: ["profile.where"] });
+  assert.equal(again, first);
+  assert.ok(core.isTwin(again));
+  core.markSent(s, first.id);
+  assert.equal(core.addDraft(s, { agent: "Fonzi", asked: "x", text: "Please track these roles.", sources: ["profile.where"] }), first, "sent today counts too");
+  assert.equal(core.outbox(s).length, 0);
+  assert.equal(s.queue.length, 1);
 });
