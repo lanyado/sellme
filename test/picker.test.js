@@ -698,6 +698,46 @@ test("a check runs one lane per channel at once, each with only its own contacts
   assert.deepEqual(checkLanes(freshState(), { platform: "linux" }).map((l) => l.id), ["email", "linkedin"], "with no agents, it still looks for people who wrote");
 });
 
+test("a check that can't read Messages leaves the texts lane out and says why, instead of failing every hour", async () => {
+  const { checkLanes, scheduledRun } = await import("../lib/schedule.js");
+  const s = freshState();
+  core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550002222" });
+  assert.ok(!checkLanes(s, { platform: "darwin", texts: false }).some((l) => l.id === "texts"));
+  assert.ok(checkLanes(s, { platform: "darwin" }).some((l) => l.id === "texts"));
+  await withSandbox(async () => {
+    withState((st) => Object.assign(st, { agents: s.agents, setup_done: true }));
+    const ran = [];
+    const runner = async (prompt) => {
+      const lane = prompt.match(/--lane (\w+)/)[1];
+      ran.push(lane);
+      withState((st) => { (st.lane_runs ??= {})[lane] = new Date().toISOString(); });
+      return { ok: true, output: "done" };
+    };
+    const last = await scheduledRun({ runner, platform: "darwin", texts: false });
+    assert.ok(!ran.includes("texts"));
+    assert.equal(last.ok, true, "the lanes it could run all finished");
+    assert.match(fs.readFileSync(path.join(process.env.SELLME_HOME, "schedule.log"), "utf8"), /\[texts\] Skipped: this check can't read Messages/);
+  });
+});
+
+test("a run stopped by the time limit says so, instead of blaming a sign-in", async () => {
+  const { runAgent } = await import("../lib/agent.js");
+  const { EventEmitter } = await import("node:events");
+  const fake = (code, after) => () => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    setTimeout(() => child.emit("close", code, null), after);
+    return child;
+  };
+  await withSandbox(async () => {
+    const slow = await runAgent("x", { spawnFn: fake(143, 1100), timeout: 1000, chrome: false });
+    assert.match(slow.failed, /took over/);
+    const quick = await runAgent("x", { spawnFn: fake(1, 10), timeout: 60_000, chrome: false });
+    assert.match(quick.failed, /sign in/);
+  });
+});
+
 test("a newly connected agent is marked to get its first message, and the mark goes once it has one", () => {
   const s = freshState();
   s.autopilot = false;
