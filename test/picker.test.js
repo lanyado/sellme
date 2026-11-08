@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
-import { activityRows, chatLink, draftLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -63,7 +63,7 @@ test("the app's tabs show what's going on", () => {
   core.addDraft(s, { agent: "Fonzi", asked: "Team?", text: "Led 20 engineers.", sources: ["f1"] });
   core.addRole(s, { company: "Acme", stage: "interview", agent: "Fonzi" });
   core.addAlert(s, "Fonzi", "An offer came in");
-  assert.match(summary(s), /^2 drafts need you · 1 to connect · 1 alert · checked /);
+  assert.match(summary(s), /^Getting you hired: 1 interview · 2 drafts need you · 1 to connect · 1 alert · checked /, "the goal leads, with how close it is");
   const drafts = draftRows(s);
   assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["○", "✗"]);
   assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "talk", "copy", "skip", "back"], "no resume option when nobody's talking about one");
@@ -71,7 +71,12 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "talk", "copy", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].alert, true);
-  assert.equal(summary(freshState()), "Nothing needs you. SELLME is selling you · not checked yet");
+  assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
+  const hired = { ...freshState(), hired: true, paused: true };
+  assert.equal(summary(hired), "You’re hired. Goal reached · not checked yet");
+  const far = freshState();
+  far.roles = [{ stage: "offer" }, { stage: "interview" }, { stage: "interview" }, { stage: "talking" }, { stage: "new" }];
+  assert.equal(goalLine(far), "Getting you hired: 1 offer, 2 interviews, 1 talking");
 });
 
 test("a long list keeps the cursor in view and says what's hidden", () => {

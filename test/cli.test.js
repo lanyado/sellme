@@ -171,7 +171,7 @@ test("the deck's whole flow works from setup to invoice", () => {
 test("version and help work with or without dashes", () => {
   const { run } = sandbox([".claude"]);
   for (const a of ["--version", "version", "-v"]) assert.match(run(a).stdout, /^\d+\.\d+\.\d+/, a);
-  for (const a of ["--help", "help", "-h"]) assert.match(run(a).stdout, /your AI agent/, a);
+  for (const a of ["--help", "help", "-h"]) assert.match(run(a).stdout, /one goal, getting you hired/, a);
 });
 
 test("the helper keeps using its own data folder if HOME changes", () => {
@@ -197,7 +197,7 @@ test("alerts lead the screen, and help works on any command", () => {
   assert.match(shim().stdout, /HEADS UP/, "stays until dismissed");
   assert.equal(shim("dismiss", "a1").status, 0);
   assert.doesNotMatch(shim().stdout, /HEADS UP/);
-  assert.match(shim("draft", "--help").stdout, /your AI agent/);
+  assert.match(shim("draft", "--help").stdout, /one goal, getting you hired/);
   shim("note", "--agent", "Fonzi", "--text", "New match");
   shim();
   assert.match(shim("notes").stdout, /New match/, "seen notes can be read again");
