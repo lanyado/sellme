@@ -66,9 +66,9 @@ test("the app's tabs show what's going on", () => {
   assert.match(summary(s), /^2 drafts need you · 1 to connect · 1 alert · checked /);
   const drafts = draftRows(s);
   assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["○", "✗"]);
-  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "skip", "back"], "no resume option when nobody's talking about one");
+  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "copy", "skip", "back"], "no resume option when nobody's talking about one");
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "instruct", "skip", "back"]);
-  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "skip", "back"]);
+  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "copy", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].alert, true);
   assert.equal(summary(freshState()), "Nothing needs you. SELLME is selling you · not checked yet");
@@ -185,7 +185,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Copy the reply", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
   assert.match(shown, /Suggested reply · only you can answer this/);
@@ -1501,4 +1501,20 @@ test("after a message to an agent that answers fast, a short run stays in that o
     assert.ok(!load().last_run, "a follow-up isn't the hourly check");
   });
   assert.match(liveLine(0, Date.now(), ["Waiting for their answer"], palette(false), Date.now(), "Jack & Jill"), /Talking with Jack & Jill · Waiting for their answer/);
+});
+
+test("a reply can be copied to the clipboard", async () => {
+  const { copyText } = await import("../lib/open.js");
+  const { EventEmitter } = await import("node:events");
+  const got = [];
+  const run = (cmd, args) => {
+    const child = new EventEmitter();
+    child.stdin = { on() {}, end: (t) => { got.push([cmd, t]); setTimeout(() => child.emit("close", cmd === "wl-copy" ? 1 : 0), 1); } };
+    return child;
+  };
+  assert.equal(await copyText("Hi Jack", { platform: "darwin", run }), true);
+  assert.deepEqual(got.at(-1), ["pbcopy", "Hi Jack"]);
+  assert.equal(await copyText("Hi", { platform: "linux", run }), true, "falls back to xclip");
+  assert.deepEqual(got.at(-1), ["xclip", "Hi"]);
+  assert.equal(await copyText("Hi", { platform: "sunos", run }), false);
 });
