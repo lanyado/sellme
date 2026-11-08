@@ -15,7 +15,7 @@
 <p align="center">
 Job tools give you features: matches, a tracker, a scheduler, a better cover letter.<br>
 <b>SELLME has one goal: you, hired.</b> As soon as possible, in a role that fits what you asked for.<br>
-It works every AI recruiter and every human one, and keeps pushing until you sign.
+It works every AI recruiter and every human one, 24/7, 365 days a year, until you sign.
 </p>
 
 ```bash
@@ -43,7 +43,7 @@ A job tool waits for you. You search, it finds; you ask, it drafts; you forget, 
 | Lives on one site | Talks to every agent and recruiter, wherever they are |
 | Stops when you stop | Stops when you're hired |
 
-Recruiters have AI agents now: Jack &amp; Jill, Fonzi, Standout, Boardy and a dozen more, each with its own app, chat and inbox. SELLME talks to all of them in their language, and to the humans in yours. Every hour, every day, until the offer.
+Recruiters have AI agents now: Jack &amp; Jill, Fonzi, Standout, Boardy and a dozen more, each with its own app, chat and inbox. SELLME talks to all of them in their language, and to the humans in yours. It fights for you 24/7, 365 days a year, until the offer.
 
 ## 🧠 The skill file is the ad
 

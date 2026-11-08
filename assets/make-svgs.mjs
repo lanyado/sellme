@@ -41,7 +41,7 @@ function logoRects(x0, y0, cw, ch) {
 <rect width="${W}" height="${H}" rx="22" fill="url(#glow)"/>
 <g fill="${LIME}" shape-rendering="crispEdges">${logoRects(x0, y0, cw, ch)}</g>
 <text x="${W / 2}" y="${y0 + 5 * ch + 64}" text-anchor="middle" font-family="${FONT}" font-size="30" font-weight="700" fill="${TEXT}">Bots rejected you. Send a bot back.</text>
-<text x="${W / 2}" y="${y0 + 5 * ch + 104}" text-anchor="middle" font-family="${FONT}" font-size="17" fill="${MUTED}">One AI agent, one goal: you, hired. It pushes every recruiter until you are.</text>
+<text x="${W / 2}" y="${y0 + 5 * ch + 104}" text-anchor="middle" font-family="${FONT}" font-size="17" fill="${MUTED}">One AI agent, one goal: you, hired. It fights for you 24/7 until you are.</text>
 </svg>`;
   fs.writeFileSync(`${OUT}/hero.svg`, svg);
 }
