@@ -336,6 +336,12 @@ test("a day in the past books nothing, so a nudge that says 'since Wednesday' ca
   assert.equal(touchesScheduling({ text: "Anything new since last week?" }), false);
   assert.equal(touchesScheduling({ text: "I'm free Wednesday at 2pm." }), true);
   assert.equal(touchesScheduling({ text: "Since Monday works, can we talk Thursday?" }), true);
+  // A loose horizon commits no time, and a nudge's note isn't their question.
+  const boardy = { kind: "nudge", asked: "Push: no new intros since Sreejan (Nov 6)", text: "Who else can you introduce Rotem to this week? Founders building agentic products are the best fit." };
+  assert.equal(touchesScheduling(boardy), false);
+  assert.equal(touchesScheduling({ text: "Any roles next week?", asked: "New matches (Nov 6) for you" }), false);
+  assert.equal(touchesScheduling({ text: "Yes, that works.", asked: "Can you meet Tuesday at 3pm?" }), true, "a reply still answers their question");
+  assert.equal(touchesScheduling({ text: "Can we talk Thursday?", kind: "nudge" }), true);
 });
 
 test("an open draft to an agent on autopilot is approved when checked again, and one that still needs you says why", async () => {
