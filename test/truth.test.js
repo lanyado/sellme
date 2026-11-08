@@ -367,3 +367,16 @@ test("a blank left for the user never goes out", async () => {
   for (const t of ["Zeekit [why it was 14 months].", "about [ ] users", "Hi <first name>,", "Hi {{name}}", "TODO add numbers", "XXX users"]) assert.ok(placeholder(t), t);
   for (const t of ["See [my site](https://x.dev)", "Rotem <rotem@example.com>", "a <https://x.dev> link", "I led a team of 6.", "Next week works"]) assert.equal(placeholder(t), null, t);
 });
+
+test("saying their own pay range back isn't a claim about the user, but their other numbers still are", async () => {
+  const { theirMoney } = await import("../lib/truth.js");
+  assert.deepEqual([...theirMoney('"$ range goes from 160-90k depending on range"')].sort(), ["160000", "190000", "90000"]);
+  const s = newState();
+  s.profile.where = "NYC";
+  const asked = 'Hiring Staff Agentic AI engineers, NYC hybrid. "$ range goes from 160-90k" and 10 years required. Interested?';
+  const echo = check(s, { text: "Thanks. I read the range as $160k to $190k base. Is that right?", asked, sources: ["profile.where"] });
+  assert.ok(!echo.reasons.some((r) => r.code === "unsourced_number"));
+  assert.ok(echo.reasons.some((r) => r.code === "pay_or_offer" && r.soft), "pay still needs the user's own yes, as a heads-up");
+  const claim = check(s, { text: "I have 10 years of experience.", asked, sources: ["profile.where"] });
+  assert.ok(claim.reasons.some((r) => r.code === "unsourced_number"), "their requirement isn't the user's fact");
+});
