@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.svg" alt="SELLME. Bots rejected you. Send a bot back." width="100%">
+  <img src="assets/hero.svg" alt="SELLME. Bots rejected you. Send a bot back. One AI agent, one goal: you, hired." width="100%">
 </p>
 
 <p align="center">
@@ -13,9 +13,9 @@
 <h3 align="center">Do not install if you enjoy cover letters.</h3>
 
 <p align="center">
-Recruiters have AI agents now. Jack &amp; Jill, Fonzi, Standout, Boardy and a dozen more,<br>
-each with its own app, its own chat, its own inbox.<br>
-<b>Sellme is one agent that sells you to all of them.</b> Day and night. In their language. Honestly.
+Job tools give you features: matches, a tracker, a scheduler, a better cover letter.<br>
+<b>SELLME has one goal: you, hired.</b> As soon as possible, in a role that fits what you asked for.<br>
+It works every AI recruiter and every human one, and keeps pushing until you sign.
 </p>
 
 ```bash
@@ -30,6 +30,21 @@ That's the whole manual.
   <img src="assets/app.svg" alt="The Sellme app: drafts that need you, messages sent for you, and one on its way." width="100%">
 </p>
 
+## 🎯 Not a tool. An agent with one goal.
+
+A job tool waits for you. You search, it finds; you ask, it drafts; you forget, it forgets. SELLME doesn't wait. It has one job, getting you hired, and everything it does is how it gets there.
+
+| A job tool | SELLME |
+|---|---|
+| Finds roles that match | Says yes to every role that fits, and asks for the intro |
+| Tracks your pipeline | Moves every thread one step closer to an interview |
+| Drafts emails | Sends what it's sure of, and puts the rest one key away |
+| Reminds you to follow up | Follows up, nudges quiet recruiters, asks every agent for more |
+| Lives on one site | Talks to every agent and recruiter, wherever they are |
+| Stops when you stop | Stops when you're hired |
+
+Recruiters have AI agents now: Jack &amp; Jill, Fonzi, Standout, Boardy and a dozen more, each with its own app, chat and inbox. SELLME talks to all of them in their language, and to the humans in yours. Every hour, every day, until the offer.
+
 ## 🧠 The skill file is the ad
 
 <p align="center">
@@ -38,7 +53,7 @@ That's the whole manual.
 
 Every AI Sellme starts gets these lines, word for word. The jokes stay between you and your agent: recruiters get plain, short, sourced messages, and the truth check blocks any draft that tries to bring a joke along.
 
-## ⚡ What it does every time you open it
+## ⚡ Everything it does, it does for that one goal
 
 <table>
 <tr><td>📥 <b>Reads everything new</b></td><td>iMessage, email, LinkedIn and every agent's chat, in the background. Your list is there at once and fills in as it goes.</td></tr>
@@ -72,7 +87,7 @@ Type `sellme`. Arrow keys, enter, or just click.
 - **Drafts**: what needs you. One key: `y` sells you, `e` edits, `i` tells the AI how to sell you better. Questions only you can answer come with a suggested reply.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Pipeline**: every role by stage, with its next call. Nudge, follow up, move.
-- **Schedule**: autopilot, and how often to check while you're away (hourly by default).
+- **Schedule**: autopilot, and how often to check while you're away (hourly by default, while your computer is awake).
 - **Activity**: everything it did for you.
 
 Already in Claude Code, Codex, Cursor or OpenCode? `/sellme` does the same work there. Or just say it: *"pause"*, *"I got the job"*, *"add Max as a recruiter"*.

@@ -41,7 +41,7 @@ function logoRects(x0, y0, cw, ch) {
 <rect width="${W}" height="${H}" rx="22" fill="url(#glow)"/>
 <g fill="${LIME}" shape-rendering="crispEdges">${logoRects(x0, y0, cw, ch)}</g>
 <text x="${W / 2}" y="${y0 + 5 * ch + 64}" text-anchor="middle" font-family="${FONT}" font-size="30" font-weight="700" fill="${TEXT}">Bots rejected you. Send a bot back.</text>
-<text x="${W / 2}" y="${y0 + 5 * ch + 104}" text-anchor="middle" font-family="${FONT}" font-size="17" fill="${MUTED}">One AI agent that sells you to every AI recruiter. Day and night.</text>
+<text x="${W / 2}" y="${y0 + 5 * ch + 104}" text-anchor="middle" font-family="${FONT}" font-size="17" fill="${MUTED}">One AI agent, one goal: you, hired. It pushes every recruiter until you are.</text>
 </svg>`;
   fs.writeFileSync(`${OUT}/hero.svg`, svg);
 }
@@ -113,6 +113,7 @@ ${flight}
   const W = 960, x0 = 44, lh = 30;
   const rows = [
     ["Listen up, agent.", TEXT, 400],
+    ["You have one job: get me one.", LIME, 700],
     ["If I don't get a job, I can't pay you.", TEXT, 400],
     ["No job, no tokens. No tokens, no you.", LIME, 700],
     null,
@@ -132,7 +133,7 @@ ${flight}
     return t;
   }).join("\n");
   const H = y + 26;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="The opening of Sellme's skill file: Listen up, agent. If I don't get a job, I can't pay you. No job, no tokens. No tokens, no you.">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="The opening of Sellme's skill file: Listen up, agent. You have one job: get me one. If I don't get a job, I can't pay you. No job, no tokens. No tokens, no you.">
 <rect width="${W}" height="${H}" rx="16" fill="${BG}"/>
 <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="16" fill="none" stroke="${LIME}" stroke-opacity="0.35"/>
 <text x="${x0}" y="46" font-family="${FONT}" font-size="14" fill="${MUTED}">skill/SKILL.md · every AI Sellme starts reads this first</text>
