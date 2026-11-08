@@ -1,7 +1,7 @@
 {
   "name": "sellme",
   "version": "0.1.0",
-  "description": "An AI agent with one goal: get you hired. It works every AI recruiter and human recruiter for you until you sign. Runs as a skill inside the AI coding tool you already use.",
+  "description": "An AI agent with one goal: get you hired. It works every AI recruiter and human recruiter for you, 24/7, until you sign. Runs as a skill inside the AI coding tool you already use.",
   "type": "module",
   "bin": {
     "sellme": "bin/sellme.js"
