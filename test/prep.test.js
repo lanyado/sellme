@@ -59,3 +59,33 @@ test("a brief is kept for its call, and a new call needs a new one", async () =>
   assert.equal(parsePrep(JSON.stringify({ say: "One\\nTwo" })).say, "One\nTwo");
   assert.match((await prepTurn(s, role, [], { tool: null })).failed, /No AI tool/);
 });
+
+test("a long conversation scrolls: arrows, the wheel and PgUp move it, and any letter starts typing", async () => {
+  const { readChat } = await import("../lib/app.js");
+  const { palette } = await import("../lib/render.js");
+  const c = palette(null);
+  const lines = Array.from({ length: 200 }, (_, i) => `line ${i + 1}`);
+  const run = async (keys) => {
+    const frames = [];
+    let typedWith = null;
+    const out = await readChat(lines, c, {
+      keyFn: async () => keys.shift(),
+      askFn: async (_, prefill) => ((typedWith = prefill), `${prefill}hat do they build?`),
+      drawFn: (s) => frames.push(s),
+    });
+    return { out, frames, typedWith };
+  };
+  const newest = await run(["escape"]);
+  assert.equal(newest.out, null);
+  assert.match(newest.frames[0], /line 200/, "it opens on the newest lines");
+  assert.match(newest.frames[0], /↑ \d+ more lines/);
+  const up = await run(["pageup", "wheelup", "up", "escape"]);
+  assert.doesNotMatch(up.frames.at(-1), /line 200\b/, "scrolled back from the newest");
+  const top = await run(["home", "escape"]);
+  assert.match(top.frames.at(-1), /line 1\n/);
+  assert.match(top.frames.at(-1), /↓ \d+ more lines/);
+  const typed = await run(["pageup", { char: "W" }]);
+  assert.equal(typed.typedWith, "W", "the letter that started it isn't lost");
+  assert.equal(typed.out, "What do they build?");
+  assert.equal((await run(["quit"])).out, "quit");
+});
