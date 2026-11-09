@@ -164,26 +164,26 @@ test("a rewrite never overwrites a draft that changed meanwhile, and escape code
 });
 
 test("what the user tells SELLME about themselves is remembered, and the draft can say their own rate", async () => {
-  const { s, q } = noted("i request 150$/hr for contract roles");
+  const { s, q } = noted("i request 120$/hr for contract roles");
   q.asked = "Contract, $82 - $87/hr. Updated resume?";
   const prompt = rewritePrompt(s, q);
   assert.match(prompt, /user's own ask/);
   assert.match(prompt, /remember/);
   assert.doesNotMatch(prompt, /to talk pay or an offer/); // Their own rate is no reason to refuse.
-  const result = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Thanks Nick. My rate for contract roles is $150/hr, and here is my resume.", sources: ["note", "f1"], remember: ["Asks $150/hr for contract roles"] }) });
-  assert.deepEqual(result.remember, ["Asks $150/hr for contract roles"]);
+  const result = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Thanks Sam. My rate for contract roles is $120/hr, and here is my resume.", sources: ["note", "f1"], remember: ["Asks $120/hr for contract roles"] }) });
+  assert.deepEqual(result.remember, ["Asks $120/hr for contract roles"]);
   const item = core.applyRewrite(s, q.id, result);
-  const fact = s.facts.find((f) => f.text === "Asks $150/hr for contract roles");
+  const fact = s.facts.find((f) => f.text === "Asks $120/hr for contract roles");
   assert.ok(fact, "the rate is one of their facts now");
   assert.match(fact.source, /you told SELLME, about the Fonzi draft/);
   assert.ok(item.sources.includes(fact.id) && !item.sources.includes("note"));
-  // 150 is backed by their own fact, so nothing blocks it. Pay still needs their own yes.
+  // 120 is backed by their own fact, so nothing blocks it. Pay still needs their own yes.
   assert.ok(!item.check.reasons.some((r) => r.code === "unsourced_number"));
   assert.ok(item.check.reasons.some((r) => r.code === "pay_or_offer"));
   // Saying it again doesn't make a second copy, and the next prompt already knows it.
-  core.keepWhatYouSaid(s, ["asks $150/hr for contract roles"]);
-  assert.equal(s.facts.filter((f) => /150/.test(f.text)).length, 1);
-  assert.match(rewritePrompt(s, q), /Asks \$150\/hr for contract roles/);
+  core.keepWhatYouSaid(s, ["asks $120/hr for contract roles"]);
+  assert.equal(s.facts.filter((f) => /120/.test(f.text)).length, 1);
+  assert.match(rewritePrompt(s, q), /Asks \$120\/hr for contract roles/);
 });
 
 test("\"note\" only counts as a source when something was remembered from it", async () => {
@@ -196,10 +196,10 @@ test("\"note\" only counts as a source when something was remembered from it", a
 });
 
 test("a note that says it all is just followed; one that points somewhere gets looked up", () => {
-  assert.equal(pointsElsewhere("i request 150$/hr for contract roles"), false);
+  assert.equal(pointsElsewhere("i request 120$/hr for contract roles"), false);
   assert.equal(pointsElsewhere("make it shorter and warmer"), false);
   assert.equal(pointsElsewhere("read our transcription in wisper flow and adjust your draft"), true);
-  assert.equal(pointsElsewhere("match what I told Ben on LinkedIn"), true);
+  assert.equal(pointsElsewhere("match what I told Dana on LinkedIn"), true);
   assert.equal(pointsElsewhere("use the dates from my calendar"), true);
 });
 
@@ -738,7 +738,7 @@ test("a check runs one lane per channel at once, each with only its own contacts
   core.addAgent(s, "Jack & Jill");
   core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550002222" });
   core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
-  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
   const lanes = checkLanes(s, { start: "Jack & Jill", platform: "darwin" });
   assert.deepEqual(lanes.map((l) => l.id), ["websites", "email", "texts", "linkedin", "apps"]);
   const lane = Object.fromEntries(lanes.map((l) => [l.id, l]));
@@ -748,7 +748,7 @@ test("a check runs one lane per channel at once, each with only its own contacts
   assert.equal(lane.email.chrome, false, "only the website lane takes Chrome");
   assert.match(lane.email.prompt, /Your contacts: Lee Park\./);
   assert.match(lane.texts.prompt, /Your contacts: Standout\./);
-  assert.match(lane.linkedin.prompt, /Your contacts: Ben Ford\./);
+  assert.match(lane.linkedin.prompt, /Your contacts: Dana Ford\./);
   assert.match(lane.apps.prompt, /Your contacts: Fonzi\./);
   assert.ok(lanes.every((l) => l.prompt.startsWith("/sellme run unattended") && l.prompt.includes(`sellme ran --lane ${l.id}`)));
   assert.deepEqual(checkLanes(freshState(), { platform: "linux" }).map((l) => l.id), ["email", "linkedin"], "with no agents, it still looks for people who wrote");
@@ -1223,8 +1223,8 @@ test("a fast send is one exact tool call, and only a send the gate cleared and t
 
 test("a reply that says the resume is attached still goes on LinkedIn, and you attach it in the chat", () => {
   const s = freshState();
-  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
-  const q = core.addBlock(s, { agent: "Ben Ford", asked: "Send your resume?", reason: "Submitting you is yours.", suggest: "Yes, please submit me. My resume is attached." });
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const q = core.addBlock(s, { agent: "Dana Ford", asked: "Send your resume?", reason: "Submitting you is yours.", suggest: "Yes, please submit me. My resume is attached." });
   assert.throws(() => core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true }), /attached, but nothing is/);
   core.attachResume(s, q.id);
   assert.equal(q.attach, "manual");
@@ -1234,7 +1234,7 @@ test("a reply that says the resume is attached still goes on LinkedIn, and you a
 
 test("a draft row is a short preview that never wraps, even with a tag", () => {
   const strip = (t) => t.replace(/\x1b\[[0-9;]*m/g, "");
-  const row = { mark: "?", agent: "Ben Ford", text: "Yes, please go ahead and submit me. My email is maya@example.com, my LinkedIn is linkedin.com/in/maya", flag: "note for the AI" };
+  const row = { mark: "?", agent: "Dana Ford", text: "Yes, please go ahead and submit me. My email is maya@example.com, my LinkedIn is linkedin.com/in/maya", flag: "note for the AI" };
   for (const width of [80, 120, 200]) {
     const line = strip(draftLine(row, " ", c, width));
     assert.ok(line.length <= Math.min(width, 120), `${width}: ${line.length}`);
@@ -1245,8 +1245,8 @@ test("a draft row is a short preview that never wraps, even with a tag", () => {
 test("a LinkedIn reply goes into its own conversation in Chrome, never a new chat, and only there", async () => {
   const { fastPlan } = await import("../lib/agent.js");
   const s = freshState();
-  core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
-  const q = core.addDraft(s, { agent: "Ben Ford", asked: "Can you talk this morning?", text: "Yes, any time this morning.", kind: "nudge", thread: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" });
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Can you talk this morning?", text: "Yes, any time this morning.", kind: "nudge", thread: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" });
   assert.equal(q.thread, "2-AbC123xyz");
   core.approve(s, q.id);
   const o = core.outbox(s)[0];
@@ -1270,11 +1270,11 @@ test("a LinkedIn reply goes into its own conversation in Chrome, never a new cha
   assert.equal(act({ action: "left_click", ref: "ref_2" }).cleared, q.id);
   assert.match(plan.prompt, /left_click the Send button/);
   assert.match(plan.prompt, /Never press Return/);
-  const noThread = core.addDraft(s, { agent: "Ben Ford", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
+  const noThread = core.addDraft(s, { agent: "Dana Ford", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
   core.approve(s, noThread.id);
   const lookup = fastPlan(core.outbox(s).find((x) => x.id === noThread.id));
   assert.match(lookup.prompt, /get_conversation[\s\S]*thread q\d+ <that thread_id>/, "a reply with no conversation on record looks it up first");
-  const first = core.addDraft(s, { agent: "Ben Ford", text: "Hi Ben, Maya here.", kind: "nudge" });
+  const first = core.addDraft(s, { agent: "Dana Ford", text: "Hi Dana, Maya here.", kind: "nudge" });
   core.approve(s, first.id);
   assert.equal(fastPlan(core.outbox(s).find((x) => x.id === first.id)).tool, "mcp__linkedin__send_message", "a first message starts the chat");
 });
@@ -1285,10 +1285,10 @@ test("asked for a resume by email, the PDF goes with the answer without anyone p
   fs.writeFileSync(file, "%PDF-1.4");
   const s = freshState();
   core.setResume(s, { file });
-  core.addRecruiter(s, "Meg Stone", { handle: "meg@talent.example" });
-  const q = core.addDraft(s, { agent: "Meg Stone", asked: "Could you send over a resume ahead of Monday?", text: "Of course, here it is.", kind: "nudge" });
+  core.addRecruiter(s, "Robin Stone", { handle: "meg@talent.example" });
+  const q = core.addDraft(s, { agent: "Robin Stone", asked: "Could you send over a resume ahead of Monday?", text: "Of course, here it is.", kind: "nudge" });
   assert.equal(q.attach, "file");
-  const plain = core.addDraft(s, { agent: "Meg Stone", asked: "Free Monday?", text: "Monday works.", kind: "nudge" });
+  const plain = core.addDraft(s, { agent: "Robin Stone", asked: "Free Monday?", text: "Monday works.", kind: "nudge" });
   assert.equal(plain.attach, undefined);
 });
 
@@ -1341,8 +1341,8 @@ test("a LinkedIn send counts only when the run saw it land, not when the click w
   const { sendOutbox } = await import("../lib/agent.js");
   withState((s) => {
     Object.assign(s, { setup_done: true });
-    core.addRecruiter(s, "Ben Ford", { handle: "linkedin.com/in/ben-ford-test" });
-    const q = core.addDraft(s, { agent: "Ben Ford", asked: "Talk today?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
+    core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
+    const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk today?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
     if (q.status !== "approved") core.approve(s, q.id);
   });
   const id = load().queue[0].id;
@@ -1436,8 +1436,8 @@ test("a run can search Notion, but not change it", () => {
 test("a suggestion looks for the user's real answer first, and only hands back text to check", async () => {
   const { researchSuggest } = await import("../lib/agent.js");
   const s = freshState();
-  core.addRecruiter(s, "Ben Ford", { handle: "ben@talent.example" });
-  const q = core.addBlock(s, { agent: "Ben Ford", asked: "Yes or no on LangGraph?", reason: "Your facts don't name it" });
+  core.addRecruiter(s, "Dana Ford", { handle: "ben@talent.example" });
+  const q = core.addBlock(s, { agent: "Dana Ford", asked: "Yes or no on LangGraph?", reason: "Your facts don't name it" });
   let prompt;
   const runner = async (p) => {
     prompt = p;
@@ -1458,14 +1458,14 @@ test("an email reads like one: greeting, body and sign-off on their own lines, w
   const s = freshState();
   s.autopilot = false;
   core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
-  core.addRecruiter(s, "Ben Ford", { handle: "+15550001234" });
+  core.addRecruiter(s, "Dana Ford", { handle: "+15550001234" });
   const mail = core.addDraft(s, { agent: "Lee Park", text: "Hi Lee, happy to chat. Best, Sam", kind: "nudge" });
-  const sms = core.addDraft(s, { agent: "Ben Ford", text: "Hi Ben, happy to chat. Best, Sam", kind: "nudge" });
+  const sms = core.addDraft(s, { agent: "Dana Ford", text: "Hi Dana, happy to chat. Best, Sam", kind: "nudge" });
   core.approve(s, mail.id);
   core.approve(s, sms.id);
   assert.equal(mail.approved_text, "Hi Lee,\n\nHappy to chat.\n\nBest,\nSam");
   assert.equal(mail.text, mail.approved_text, "what's approved is what's sent");
-  assert.equal(sms.approved_text, "Hi Ben, happy to chat. Best, Sam", "a text stays one line");
+  assert.equal(sms.approved_text, "Hi Dana, happy to chat. Best, Sam", "a text stays one line");
   assert.deepEqual(card(mail, palette(false), "", 60).split("\n").filter((l) => /Lee,|Happy|Best|Sam/.test(l)).map((l) => l.replace(/^\s*│\s*/, "")), ["Hi Lee,", "Happy to chat.", "Best,", "Sam"]);
 });
 
@@ -1577,11 +1577,11 @@ test("a reply can be copied to the clipboard", async () => {
 
 test("when the Send click went through but the read-back missed it, a read-only look settles it", () => withSandbox(async () => {
   const { sendOutbox, seeDelivered } = await import("../lib/agent.js");
-  const text = "Hi Nicholas, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
+  const text = "Hi Sam, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
   withState((s) => {
     Object.assign(s, { setup_done: true });
-    core.addRecruiter(s, "Nicholas Fischer", { handle: "linkedin.com/in/nf-test" });
-    const q = core.addDraft(s, { agent: "Nicholas Fischer", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
+    core.addRecruiter(s, "Sam Ortiz", { handle: "linkedin.com/in/nf-test" });
+    const q = core.addDraft(s, { agent: "Sam Ortiz", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
     if (q.status !== "approved") core.approve(s, q.id);
   });
   const id = load().queue[0].id;
@@ -1598,21 +1598,21 @@ test("when the Send click went through but the read-back missed it, a read-only 
     });
     return { ok: true, output: "failed: the conversation still shows only their message" };
   };
-  const missing = await sendOutbox(id, { runner: runner("Nicholas: Forward Deployed Engineers needed") });
+  const missing = await sendOutbox(id, { runner: runner("Sam: Forward Deployed Engineers needed") });
   assert.equal(missing.sent, false, "not in the conversation: still not sent");
   assert.ok(!looks[0].some((t) => /computer/.test(t)), "the look can't type or click");
-  const there = await sendOutbox(id, { runner: runner(`Nicholas: needed for 12 months\nRotem Lanyado 9:51 PM\n${text}`) });
+  const there = await sendOutbox(id, { runner: runner(`Sam: needed for 12 months\nRotem Lanyado 9:51 PM\n${text}`) });
   assert.equal(there.sent, true);
   assert.equal(load().queue[0].status, "sent");
 }));
 
 test("trying again after an unseen click looks first, so the message can't go twice", () => withSandbox(async () => {
   const { sendOutbox, seeDelivered } = await import("../lib/agent.js");
-  const text = "Hi Nicholas, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
+  const text = "Hi Sam, thanks for reaching out. Yes, I am interested in the role. What is the next step?";
   withState((s) => {
     Object.assign(s, { setup_done: true });
-    core.addRecruiter(s, "Nicholas Fischer", { handle: "linkedin.com/in/nf-test" });
-    const q = core.addDraft(s, { agent: "Nicholas Fischer", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
+    core.addRecruiter(s, "Sam Ortiz", { handle: "linkedin.com/in/nf-test" });
+    const q = core.addDraft(s, { agent: "Sam Ortiz", asked: "Interested?", text, kind: "nudge", thread: "2-AbC123xyz" });
     if (q.status !== "approved") core.approve(s, q.id);
     Object.assign(q, { send_cleared: { run: "old", ts: new Date(Date.now() - 600_000).toISOString() }, send_confirmed: { run: "old", ts: new Date().toISOString() } });
   });

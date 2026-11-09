@@ -63,7 +63,7 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 <tr><td>🧑‍💼 <b>Talks to humans too</b></td><td>Replies to recruiters in your voice, from your own email, iMessage or LinkedIn, in the thread they wrote in.</td></tr>
 <tr><td>🗂️ <b>Keeps your pipeline</b></td><td>Matches, booked calls, rejections and next steps, without you typing any of it.</td></tr>
 <tr><td>🎤 <b>Preps you</b></td><td>Before a call, press p on the role: a two-minute brief on who you're meeting, what's been said, likely questions with answers from your own facts, and what to ask. Then ask SELLME anything about it.</td></tr>
-<tr><td>🧠 <b>Remembers</b></td><td>What you tell it about yourself, in a note, a talk or an answer ("I ask $150/hr for contract roles", "open to travel"), becomes a fact, so you never say it twice.</td></tr>
+<tr><td>🧠 <b>Remembers</b></td><td>What you tell it about yourself, in a note, a talk or an answer ("I ask $120/hr for contract roles", "open to travel"), becomes a fact, so you never say it twice.</td></tr>
 </table>
 
 ## 🎯 Sure? It sends. Not sure? It asks.
