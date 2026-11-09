@@ -57,7 +57,7 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 
 | You found | Do this |
 |---|---|
-| A new role that fits | `role add`, and `note` it |
+| A new role that fits | `role add`, and `note` it. `--agent` is only the agent or recruiter that brought you the role or submitted you. A company writing to you directly has none: leave `--agent` off, never guess. |
 | An update, such as an interview confirmed | `role set` (or `role add` if the company isn't in the pipeline yet), and `note` it |
 | Another agent submitted the user for a role, or the user chose which one should | `role set <id> --agent "<that agent>"`, so the check stops warning that the role is in process elsewhere |
 | A rejection | `role set <id> --stage rejected` (or `role add --stage rejected`), and `note` it. Don't reply. |

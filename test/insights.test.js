@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { answerEarned, addAgent, addDraft, addRole, approve, earnedOffer, earnedStreak, instruct, markSent, pushList, setAuto, setRole, skip, topicOf } from "../lib/core.js";
 import { draftActions, timelineRows } from "../lib/app.js";
-import { DAY, HOUR, nudgePlan, reached, replyTiming, roleStory, scorecard, timeline } from "../lib/insights.js";
+import { DAY, HOUR, attributed, talkedAbout, nudgePlan, reached, replyTiming, roleStory, scorecard, timeline } from "../lib/insights.js";
 import { dueBriefs } from "../lib/prep.js";
 import { card, diffLines, palette, scorecard as scorecardScreen, timelineAxis, timelineScale, timelineStrip, wordDiff } from "../lib/render.js";
 import { freshState } from "../lib/store.js";
@@ -56,6 +56,7 @@ test("nudge timing has a floor and a ceiling, and ignoring a nudge doubles the w
 test("a run sees who's due and goes to the agents delivering most first, with referral pay nowhere in it", () => {
   const s = search();
   addRole(s, { company: "Acme", agent: "Slowbot", stage: "interview" });
+  s.notes.push({ id: "n0", agent: "Slowbot", text: "New match: Acme", ts: ago(5 * DAY) });
   exchange(s, "Dex", 3 * DAY);
   s.ledger.push({ id: "l1", agent: "Dex", stage: "paid", ts: ago(DAY) });
   const push = pushList(s, NOW);
@@ -69,6 +70,7 @@ test("a run sees who's due and goes to the agents delivering most first, with re
 test("the scorecard counts how far a role got, even after a rejection, and says who isn't answering", () => {
   const s = search();
   const r = addRole(s, { company: "Acme", agent: "Dex", stage: "talking" });
+  s.notes.push({ id: "n0", agent: "Dex", text: "New match: Acme", ts: ago(5 * DAY) });
   setRole(s, r.id, "interview");
   setRole(s, r.id, "rejected");
   assert.equal(reached(r), 2);
@@ -267,4 +269,16 @@ test("a call in the next day gets its brief ahead, once, and a failed try isn't 
   assert.equal(dueBriefs(s).length, 1, "tried long enough ago");
   near.prep = { brief: "Ready", for_call: soon };
   assert.deepEqual(dueBriefs(s), [], "already written");
+});
+
+test("a role filed under an agent that never spoke of the company isn't credited to it or sent through it", () => {
+  const s = search();
+  const guessed = addRole(s, { company: "Northwind AI", agent: "Dex", stage: "interview" });
+  s.notes.push({ id: "n1", agent: "Email", text: "Northwind interview booked Mon 3 PM", ts: ago(DAY) });
+  assert.equal(attributed(s, guessed), null);
+  assert.equal(scorecard(s, NOW).rows.find((r) => r.agent === "Dex").interviews, 0, "no credit for a guess");
+  s.queue.push({ id: "q7", agent: "Dana Lee", channel: "self", kind: "reply", status: "sent", text: "Looking forward to Northwind", sent_at: ago(DAY), created: ago(DAY) });
+  assert.deepEqual(talkedAbout(s, "Northwind AI").map((a) => a.name), ["Dana Lee"], "the contact who did talk about it comes first");
+  s.notes.push({ id: "n2", agent: "Dex", text: "New match: Northwind AI, FDE", ts: ago(2 * DAY) });
+  assert.equal(attributed(s, guessed), "Dex", "once Dex has mentioned it, it's Dex's");
 });

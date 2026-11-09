@@ -23,7 +23,7 @@ test("SELLME's own notes sit apart from what they asked, on the card and in the 
     sources: ["f1"],
   });
   const shown = card(q, palette(null));
-  const asked = shown.indexOf("Boardy, Nov 8");
+  const asked = shown.indexOf("offered an intro");
   const notes = shown.indexOf("SELLME’s notes");
   assert.ok(asked !== -1 && notes > asked);
   assert.ok(!shown.slice(asked, notes).includes("Calendar now"), "their section holds only their words");
