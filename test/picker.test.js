@@ -482,7 +482,7 @@ test("dates people actually type become the next time that date comes round", ()
 test("a closed role offers no messages, and closing one clears its call", () => {
   const s = state();
   const role = core.addRole(s, { company: "Acme", stage: "talking", nextCall: "2030-01-01T10:00:00Z" });
-  assert.deepEqual(roleActions(role).map((a) => a.id), ["nudge", "followup", "call", "move", "delete", "back"]);
+  assert.deepEqual(roleActions(role).map((a) => a.id), ["prep", "nudge", "followup", "call", "move", "delete", "back"]); // A call is coming, so prep comes first.
   core.setRole(s, role.id, "rejected");
   assert.equal(role.next_call, null);
   assert.deepEqual(roleActions(role).map((a) => a.id), ["move", "delete", "back"]);
