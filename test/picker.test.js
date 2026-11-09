@@ -66,10 +66,10 @@ test("the app's tabs show what's going on", () => {
   core.addAlert(s, "Fonzi", "An offer came in");
   assert.match(summary(s), /^Getting you hired: 1 interview · 2 drafts need you · 1 to connect · 1 alert · checked /, "the goal leads, with how close it is");
   const drafts = draftRows(s);
-  assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["○", "✗"]);
-  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "talk", "copy", "skip", "back"], "no resume option when nobody's talking about one");
+  assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["✗", "○"], "newest first");
+  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "instruct", "talk", "skip", "back"], "no resume option when nobody's talking about one");
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "instruct", "talk", "skip", "back"]);
-  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "talk", "copy", "skip", "back"]);
+  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "instruct", "talk", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].alert, true);
   assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
@@ -238,14 +238,14 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Talk it over with SELLME", "Copy the reply", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Talk it over with SELLME", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
-  assert.match(shown, /Suggested reply · only you can answer this/);
+  assert.match(shown, /Suggested · only you can answer this/);
   assert.match(shown, /Note from the AI\n  │ Accepting an intro is yours\./);
   assert.doesNotMatch(shown, /✗/);
   core.setSuggestion(s, q.id, "Yes please, thanks Boardy.", { by: "you" });
-  assert.match(card(q, c), /Your reply\n  │ Yes please, thanks Boardy\./);
+  assert.match(card(q, c), /Your reply\n *╭─+╮\n *│ Yes please, thanks Boardy\. *│/);
   core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true });
   assert.deepEqual(core.outbox(s).map((o) => o.text), ["Yes please, thanks Boardy."]);
   const lie = core.addDraft(s, { agent: "Boardy", asked: "Team of 20?", text: "Yes, 20.", sources: [] });
@@ -1375,7 +1375,8 @@ test("an approved message shows a spinner by the name while it goes, and a faile
   const row = going.find((r) => r.id === q.id);
   assert.equal(row.sending, true);
   assert.equal(row.mark, "⠙");
-  assert.match(row.text, /Sending 0:04 · click to stop/);
+  assert.match(row.status.label, /sending 0:04/);
+  assert.equal(row.text, "click to stop");
   const failed = draftRows(s, { failed: new Map([[q.id, "No reply from Chrome"]]) }).find((r) => r.id === q.id);
   assert.equal(failed.mark, "✗");
   assert.match(failed.text, /No reply from Chrome · click to try again/);
@@ -1467,7 +1468,7 @@ test("an email reads like one: greeting, body and sign-off on their own lines, w
   assert.equal(mail.approved_text, "Hi Lee,\n\nHappy to chat.\n\nBest,\nSam");
   assert.equal(mail.text, mail.approved_text, "what's approved is what's sent");
   assert.equal(sms.approved_text, "Hi Dana, happy to chat. Best, Sam", "a text stays one line");
-  assert.deepEqual(card(mail, palette(false), "", 60).split("\n").filter((l) => /Lee,|Happy|Best|Sam/.test(l)).map((l) => l.replace(/^\s*│\s*/, "")), ["Hi Lee,", "Happy to chat.", "Best,", "Sam"]);
+  assert.deepEqual(card(mail, palette(false), "", 60).split("\n").filter((l) => /Lee,|Happy|Best|Sam/.test(l)).map((l) => l.replace(/^\s*│\s*/, "").replace(/\s*│$/, "")), ["Hi Lee,", "Happy to chat.", "Best,", "Sam"]);
 });
 
 test("a long card scrolls with its choices pinned, and starts at the top", () => {
@@ -1666,4 +1667,47 @@ test("a selection reads the plain screen, with color and links gone and a long l
 test("no screen offers keys that are gone: v to select and q to quit", () => {
   for (const tab of ["Drafts", "Agents", "Pipeline", "Timeline", "Schedule", "Activity"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
   assert.match(footerLine("Pipeline", 140), /d delete/);
+});
+
+test("a newer message from them drops the draft answering their older one, but two questions in one message both stay", () => {
+  const s = state();
+  core.addAgent(s, "Lee Park", { channel: "self", handle: "lee@acme.example" });
+  const old = core.addDraft(s, { agent: "Lee Park", asked: "Can you do Tuesday?", text: "Tuesday works for Maya.", kind: "reply", company: "Acme", received: new Date(Date.now() - 2 * 864e5).toISOString() });
+  const other = core.addDraft(s, { agent: "Lee Park", asked: "And for Globex?", text: "Happy to talk Globex.", company: "Globex", received: new Date(Date.now() - 2 * 864e5).toISOString() });
+  old.created = other.created = new Date(Date.now() - 864e5).toISOString();
+  const first = core.addDraft(s, { agent: "Lee Park", asked: "Actually, Thursday?", text: "Thursday works for Maya.", company: "Acme", received: new Date(Date.now() - 3600e3).toISOString() });
+  const second = core.addDraft(s, { agent: "Lee Park", asked: "And remote?", text: "Remote works for Maya.", company: "Acme", received: first.received });
+  assert.equal(old.status, "skipped");
+  assert.equal(old.superseded_by, first.id);
+  assert.ok(s.notes.some((n) => /wrote again/.test(n.text)));
+  assert.notEqual(other.status, "skipped", "another company's conversation is left alone");
+  assert.notEqual(first.status, "skipped", "two questions from the same message both stay");
+  assert.notEqual(second.status, "skipped");
+  assert.throws(() => core.addDraft(s, { agent: "Lee Park", text: "x", received: "yesterday-ish" }), /can’t read/);
+});
+
+test("the list says what each item needs in words, and how long ago their message came, newest first", () => {
+  const s = state();
+  core.addAgent(s, "Lee Park", { channel: "self", handle: "lee@acme.example" });
+  core.addAgent(s, "Kai Moss", { channel: "self", handle: "kai@acme.example" });
+  const fact = core.addFact(s, "Works remotely", "resume");
+  core.addDraft(s, { agent: "Lee Park", asked: "Remote?", text: "Yes, remote works.", sources: [fact.id], received: new Date(Date.now() - 3 * 3600e3).toISOString() });
+  core.addDraft(s, { agent: "Kai Moss", asked: "What salary?", text: "Happy to talk pay on a call.", sources: [fact.id], received: new Date(Date.now() - 5 * 60e3).toISOString() });
+  const rows = draftRows(s).filter((r) => r.draft);
+  assert.deepEqual(rows.map((r) => r.agent), ["Kai Moss", "Lee Park"]);
+  assert.deepEqual(rows.map((r) => r.status.label), ["check: pay", "ready to send"]);
+  assert.deepEqual(rows.map((r) => r.text), ["their email · 5m ago", "their email · 3h ago"]);
+  const line = draftLine(rows[0], " ", c, 80);
+  assert.doesNotMatch(line, /happy to talk/i, "no preview of the draft");
+});
+
+test("the card is a chat: who wrote and when over their bubble, the reply on the right", () => {
+  const q = { agent: "Lee Park", channel: "self", to: "lee@acme.example", from: "Lee Park · Acme", received: new Date(Date.now() - 2 * 3600e3).toISOString(), asked: "Can you send your availability?", text: "Maya is free Tuesday after 2.", status: "pending", sources: ["f1"], check: { reasons: [] } };
+  const lines = card(q, c, "", 80).split("\n");
+  const sender = lines.findIndex((l) => l.includes("Lee Park · Acme"));
+  assert.match(lines[sender - 1], /· 2h ago/);
+  assert.match(lines[sender + 2], /^  │ Can you send your availability\? │$/);
+  const mine = lines.find((l) => l.includes("Maya is free"));
+  assert.ok(mine.indexOf("│") > 20, "the reply sits on the right");
+  assert.equal(selectionText([mine], { x: 0, y: 0 }, { x: 200, y: 0 }), "Maya is free Tuesday after 2.", "copying it leaves the bubble behind");
 });
