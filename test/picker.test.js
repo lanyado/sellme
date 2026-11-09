@@ -338,13 +338,17 @@ test("SECURITY.md's promise holds: no network, and only the link opener, the rew
   for (const file of files) {
     const text = fs.readFileSync(path.join(ROOT, file), "utf8");
     assert.doesNotMatch(text, /node:(http|https|net|tls|dns|dgram|vm)\b|\bfetch\(|\beval\(|new Function/, file);
-    if (!["lib/open.js", "lib/rewrite.js", "lib/connect.js", "lib/agent.js", "lib/schedule.js"].includes(file)) assert.doesNotMatch(text, /child_process/, file);
+    if (!["lib/open.js", "lib/rewrite.js", "lib/connect.js", "lib/agent.js", "lib/schedule.js", "lib/memory.js"].includes(file)) assert.doesNotMatch(text, /child_process/, file);
   }
   // The rewrite starts only a known AI tool, directly, with its tools off and nothing it could send with.
   const rewriter = fs.readFileSync(path.join(ROOT, "lib/rewrite.js"), "utf8");
   assert.doesNotMatch(rewriter, /shell:|\bexec\(|execSync|API_KEY/);
   assert.match(rewriter, /"--tools", ""/);
   assert.match(rewriter, /"--sandbox", "read-only"/);
+  // The memory runs only the folder the user connected, always local only, and never sees the floor.
+  const mem = fs.readFileSync(path.join(ROOT, "lib/memory.js"), "utf8");
+  assert.doesNotMatch(mem, /shell:|\bexec\(|execSync/);
+  assert.match(mem, /MEMSVC_LOCAL: "1", JEV_API_KEY: ""/);
 });
 
 const CLAUDE = { id: "claude", name: "Claude Code", add: () => [], after: () => null };
