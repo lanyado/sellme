@@ -1453,8 +1453,8 @@ test("a suggestion looks for the user's real answer first, and only hands back t
 });
 
 test("an email reads like one: greeting, body and sign-off on their own lines, with only spacing changed", () => {
-  const text = "Hi Jenna and Tom, thanks for reaching out. I added my times through the link. Looking forward to it. Best, Sam";
-  assert.equal(core.emailLayout(text), "Hi Jenna and Tom,\n\nThanks for reaching out. I added my times through the link. Looking forward to it.\n\nBest,\nSam");
+  const text = "Hi Dana and Tom, thanks for reaching out. I added my times through the link. Looking forward to it. Best, Sam";
+  assert.equal(core.emailLayout(text), "Hi Dana and Tom,\n\nThanks for reaching out. I added my times through the link. Looking forward to it.\n\nBest,\nSam");
   assert.equal(core.emailLayout("Thanks so much for the help."), "Thanks so much for the help.", "no greeting or name, left alone");
   assert.equal(core.emailLayout("Hi Sam,\n\nAlready laid out."), "Hi Sam,\n\nAlready laid out.");
   const s = freshState();
