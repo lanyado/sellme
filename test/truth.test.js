@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { freshState as newState } from "../lib/store.js";
 // These tests check the approval gate itself, so autopilot is off unless a test turns it on.
 const freshState = () => ({ ...newState(), autopilot: false });
-import { check, isHumanQuestion, numbers, sameCompany } from "../lib/truth.js";
+import { check, isHumanQuestion, numbers, sameCompany, touchesScheduling } from "../lib/truth.js";
 
 function state() {
   const s = freshState();
@@ -129,6 +129,15 @@ test("found on real data: offering time slots isn't an offer, and \"two updates\
     assert.ok(!codes(check(state(), { text: t, kind: "nudge" })).includes("pay_or_offer"), t);
   }
   assert.ok(codes(check(state(), { text: "Maya led two teams.", asked: "Teams?", sources: ["f1"] })).includes("unsourced_number"), "a real claim still counts");
+});
+
+test("found on real data: when a message arrived isn't a time to book", () => {
+  const asked = "Boardy on LinkedIn, Nov 8, 10:24 AM: offered an intro to Jeff Settle at Runlayer. Not answered yet.";
+  const text = "Yes, please: Maya would like the intro to Jeff Settle at Runlayer. What is the next step?";
+  assert.equal(touchesScheduling({ text, asked, kind: "reply" }), false);
+  assert.equal(touchesScheduling({ text, asked: "Standout, Nov 7: \"send me new slots\"", kind: "reply" }), true, "slots asked for still count");
+  assert.equal(touchesScheduling({ text, asked: "Can you do Mon 11:30 or Tue at 2 PM?", kind: "reply" }), true);
+  assert.equal(touchesScheduling({ text: "Maya can do Nov 11, 10 AM.", asked: "When?", kind: "reply" }), true);
 });
 
 test("revealing the floor is flagged, however it's written", () => {
