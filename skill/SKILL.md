@@ -90,12 +90,13 @@ Keep this simple for them. `/sellme` does the daily work, and they never have to
 **1. Draft.** Before mentioning a company, run `{{SELLME}} reconcile "<company>"`. Then:
 
 ```
-{{SELLME}} draft --agent "<agent>" --asked "<what they asked>" [--context "<your notes>"] --text "<your reply>" --source f1,profile.where [--kind reply|nudge|slot|disclosure] [--company "<company>"]
+{{SELLME}} draft --agent "<agent>" --from "<who wrote it, and their company>" --received "<when their message arrived, ISO>" --asked "<their newest message>" [--context "<your notes>"] --text "<your reply>" --source f1,profile.where [--kind reply|nudge|slot|disclosure] [--company "<company>"]
 ```
 
 - To send the user's resume with a reply, add `--attach resume`. Never say something is attached without it.
 - `--asked` is only for the user's eyes, never sent, so keep what they actually said: a pay range ("base $200–240k"), dates, names, links. Never shorten it to "shared the base range". Only `--text` goes to them, and the salary floor still never goes in either.
-- `--asked` holds the other side's words and nothing else: who, when, and what they said or asked. Everything you add yourself (what you checked, an earlier choice of the user's, their calendar, why you wrote it this way) goes in `--context "<your notes>"`, which the card shows under "SELLME's notes". Keep it to what helps the user decide.
+- Answer the newest message in the conversation. Read the whole thread first: if they wrote again after the message you were about to answer, answer the new one. `--received` is that message's own time, and `--from` is who sent it ("Jenna Pace · AIVC"); the card shows them like a chat. With `--received`, the helper drops any older draft still waiting in that conversation, so never skip it. `block` takes both too.
+- `--asked` holds their newest message, in their words, and nothing else. Earlier messages in the thread that matter go in `--context`. Everything you add yourself (what you checked, an earlier choice of the user's, their calendar, why you wrote it this way) goes in `--context "<your notes>"`, which the card shows under "SELLME's notes". Keep it to what helps the user decide.
 - `style` in `brief --json` is how the user likes their messages, learned from their own edits. Follow it for tone and length. It's never a reason to add a claim.
 - Sources are fact ids from `fact list`, or `profile.name`, `profile.roles`, `profile.where`, `profile.floor`. A `nudge`, `slot` or `disclosure` doesn't need one unless it makes a claim.
 - Never leave a blank for the user to fill (`[how many users]`, `[ ]`, `<company>`, `TODO`). They may send it as is, so the helper blocks it. If you don't know a detail, write around it, or `block` the question.

@@ -374,7 +374,7 @@ test("non-interactive review only lists, it never approves", () => {
   shim("agent", "add", "Fonzi");
   shim("profile", "set", "where", "NYC");
   shim("draft", "--agent", "Fonzi", "--asked", "NYC?", "--text", "Yes.", "--source", "profile.where");
-  assert.match(shim("review").stdout, /They asked/);
+  assert.match(shim("review").stdout, /Your reply/);
   assert.equal(JSON.parse(shim("review", "--json").stdout)[0].status, "pending");
 });
 

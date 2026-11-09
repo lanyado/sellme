@@ -72,6 +72,7 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 | An open item the user already dealt with, such as a question they answered themselves | `{{SELLME}} handled <id> --reason "<how you know, in a few words>"`. That skips it and puts the reason in Activity, so they never see a draft that needs nothing. Never use `skip` for this. |
 | Matches or intros offered, "which are a yes?" | `draft` one reply saying yes to every one that fits, citing `profile.roles` and `profile.where`, and asking for the intros. Leave out any `reconcile` says is in process elsewhere, without explaining why. Never `block` this to let the user choose. |
 | A role that doesn't fit | `note` it with the reason. Don't turn it down: that's the user's call. |
+| A thread with a newer message than an open draft answers | Draft against the newest message, with `--received`. The helper drops the old draft. |
 | A question the facts answer | `draft` |
 | A question they don't answer or contradict | Look in their email, call notes, notes and files first, as above. Then `block`, with a reason saying what they do say, and a `--suggest` from what you found |
 | A question about the user's other calls, or who else they're talking to | Don't answer, and don't `block` it. `note` that you left it alone. |
