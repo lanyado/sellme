@@ -1127,7 +1127,7 @@ test("the logo fits the terminal, and clicks land on the line that was drawn", a
   assert.equal(logo(c, 30, 40), "SELLME");
   assert.deepEqual(placeLines("short\n" + "x".repeat(150) + "\nnext", 100), [0, 1, 3]);
   const spots = tabSpots();
-  assert.deepEqual(spots.slice(0, 2).map((t) => [t.tab, t.from, t.to]), [["Drafts", 0, 9], ["Agents", 9, 18]]);
+  assert.deepEqual(spots.slice(0, 2).map((t) => [t.tab, t.from, t.to]), [["Drafts", 0, 9], ["Chat", 9, 16]]);
 });
 
 test("a resume goes as the file by email, filled in by the gate, and as a link anywhere else", () => {
