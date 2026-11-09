@@ -242,7 +242,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Talk it over with SELLME", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
-  assert.match(shown, /Suggested · only you can answer this/);
+  assert.match(shown, /Suggested\n/);
   assert.match(shown, /Note from the AI\n  │ Accepting an intro is yours\./);
   assert.doesNotMatch(shown, /✗/);
   core.setSuggestion(s, q.id, "Yes please, thanks Boardy.", { by: "you" });
@@ -1519,7 +1519,7 @@ test("a reply with a blank in it offers only to fill it in, and can't be sent", 
   assert.throws(() => core.answerYourself(s, q.id, q.suggestion, { confirmSensitive: true }), /blank/);
   const plain = (x) => x;
   const shown = card(q, { muted: plain, bold: plain, lime: plain, red: plain, violet: plain });
-  assert.match(shown, /still has a blank to fill: “\[how many\]”/);
+  assert.match(shown, /Has a blank to fill: “\[how many\]”/);
 });
 
 test("a note on a draft can look up what it points to, like a call, before the rewrite", async () => {
