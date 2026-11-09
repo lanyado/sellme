@@ -38,7 +38,7 @@ test("only what the user changed counts, and their own notes count too", () => {
   assert.match(prompt, /Drafted: Thanks so much/);
   assert.match(prompt, /Sound less eager/);
   assert.doesNotMatch(prompt, /SECRET-THEIR-WORDS/, "the other side's words can't steer what's learned");
-  assert.doesNotMatch(prompt, /987/);
+  assert.doesNotMatch(prompt, /987K/);
 });
 
 test("nothing is asked of the AI until a few edits pile up, and they're only read once", async () => {

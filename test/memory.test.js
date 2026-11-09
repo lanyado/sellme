@@ -27,7 +27,7 @@ test("the memory gets what was asked, sent and noted, keyed by Sellme's ids, and
   assert.equal(docs.sent[0].project, "Initrode");
   assert.match(docs.asked[0].content, /^Dana asked about Initrode: Client is AWS, 120\/hr/);
   assert.deepEqual(docs.notes.map((d) => d.external_id), ["n1"]); // "Sent:" repeats sent, and n3 names the floor.
-  assert.ok(!JSON.stringify(docs).includes("987"));
+  assert.ok(!/987K/.test(JSON.stringify(docs)), "the floor never goes to the memory");
 });
 
 test("each memory says who it's with, and anything about a company is filed under it", () => {

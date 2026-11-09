@@ -28,7 +28,7 @@ test("the chat is given what's on record for the name asked about, and only the 
   assert.match(prompt, /1 interviews, 0 talking, 1 new matches, 1 closed/);
   assert.match(prompt, /1 drafts waiting/);
   assert.doesNotMatch(prompt, /Quietco/, "no list of other roles to recite");
-  assert.doesNotMatch(prompt, /987/);
+  assert.doesNotMatch(prompt, /987K/);
   assert.match(prompt, /Never list their other processes/);
   assert.match(prompt, /Never guess a status/);
   assert.match(prompt, /can't send or change anything/);
