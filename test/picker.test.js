@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords } from "../lib/agent.js";
 import { screenRows, selectionText } from "../lib/picker.js";
+import { sentLine, theirMessage } from "../lib/render.js";
 import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
@@ -1696,7 +1697,7 @@ test("the list says what each item needs in words, and how long ago their messag
   const rows = draftRows(s).filter((r) => r.draft);
   assert.deepEqual(rows.map((r) => r.agent), ["Kai Moss", "Lee Park"]);
   assert.deepEqual(rows.map((r) => r.status.label), ["check: pay", "ready to send"]);
-  assert.deepEqual(rows.map((r) => r.text), ["their email · 5m ago", "their email · 3h ago"]);
+  assert.deepEqual(rows.map((r) => r.text), ["their email · sent 5m ago", "their email · sent 3h ago"]);
   const line = draftLine(rows[0], " ", c, 80);
   assert.doesNotMatch(line, /happy to talk/i, "no preview of the draft");
 });
@@ -1705,9 +1706,26 @@ test("the card is a chat: who wrote and when over their bubble, the reply on the
   const q = { agent: "Lee Park", channel: "self", to: "lee@acme.example", from: "Lee Park · Acme", received: new Date(Date.now() - 2 * 3600e3).toISOString(), asked: "Can you send your availability?", text: "Maya is free Tuesday after 2.", status: "pending", sources: ["f1"], check: { reasons: [] } };
   const lines = card(q, c, "", 80).split("\n");
   const sender = lines.findIndex((l) => l.includes("Lee Park · Acme"));
-  assert.match(lines[sender - 1], /· 2h ago/);
+  assert.match(lines[sender], /Lee Park · Acme  .*· 2h ago$/, "who and when on one line");
   assert.match(lines[sender + 2], /^  │ Can you send your availability\? │$/);
   const mine = lines.find((l) => l.includes("Maya is free"));
   assert.ok(mine.indexOf("│") > 20, "the reply sits on the right");
   assert.equal(selectionText([mine], { x: 0, y: 0 }, { x: 200, y: 0 }), "Maya is free Tuesday after 2.", "copying it leaves the bubble behind");
+});
+
+test("an older draft's header comes out of its text: who and when go by the name, the box holds only what they said", () => {
+  const now = new Date("2026-11-09T12:00:00");
+  const one = theirMessage({ agent: "Kai", asked: 'Dana Ford, Acme, Nov 6, 12:16 PM: "When you first looked at it, what stood out?"' }, now.getTime());
+  assert.equal(one.from, "Dana Ford, Acme");
+  assert.equal(one.text, "When you first looked at it, what stood out?");
+  assert.equal(new Date(one.when.iso).getDate(), 6);
+  assert.equal(one.when.dateOnly, false);
+  const dateOnly = theirMessage({ agent: "Kai", asked: "Kai Moss, Nov 8: wants to tell you about the role." }, now.getTime());
+  assert.deepEqual([dateOnly.text, sentLine(dateOnly.when, now.getTime())], ["wants to tell you about the role.", "Sun, Nov 8 · yesterday"]);
+  assert.equal(new Date(theirMessage({ agent: "K", asked: "Kai, Dec 20: hi" }, now.getTime()).when.iso).getFullYear(), 2025, "never in the future");
+  const plain = theirMessage({ agent: "Kai", asked: "Can you do Tuesday: 2pm or 4pm?" }, now.getTime());
+  assert.deepEqual([plain.from, plain.when, plain.text], ["Kai", null, "Can you do Tuesday: 2pm or 4pm?"], "a message that just has a colon is left alone");
+  const lines = card({ agent: "Kai", channel: "mcp", asked: 'Dana Ford, Acme, Nov 6, 12:16 PM: "Hello there"', text: "Hi", status: "pending", check: { reasons: [] } }, c, "", 80).split("\n");
+  assert.match(lines.find((l) => l.includes("Dana Ford")), /Dana Ford, Acme  Fri, Nov 6, 12:16 PM · \d+d ago/);
+  assert.ok(lines.some((l) => /^  │ Hello there │$/.test(l)));
 });
