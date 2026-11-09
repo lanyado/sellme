@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as core from "../lib/core.js";
 import { TABS, footerLine } from "../lib/app.js";
-import { parseTalk, saveChat, talkPrompt, talkTurn } from "../lib/talk.js";
+import { onRecord, parseTalk, saveChat, talkPrompt, talkTurn } from "../lib/talk.js";
 import { freshState } from "../lib/store.js";
 
 function search() {
@@ -18,21 +18,39 @@ function search() {
   return { s, r };
 }
 
-test("the chat knows the search: facts, the pipeline, what's waiting and what happened, and never the floor", () => {
+test("the chat is given what's on record for the name asked about, and only the shape of the rest", () => {
   const { s } = search();
   core.addDraft(s, { agent: "Dex", asked: "Team?", text: "Maya led a team of 6.", sources: ["f1"] });
-  const prompt = talkPrompt(s, [{ who: "you", text: "What should I focus on today?" }]);
+  const prompt = talkPrompt(s, [{ who: "you", text: "what is the status with Northwind?" }]);
   assert.match(prompt, /f1: Led a team of 6/);
-  assert.match(prompt, /Northwind, FDE: interview, next call/);
-  assert.match(prompt, /and 1 new matches/);
-  assert.match(prompt, /1 closed/);
-  assert.match(prompt, /Waiting on them in Drafts: Dex/);
-  assert.match(prompt, /moved you to the panel/);
+  assert.match(prompt, /On record[^]*- Northwind, FDE: interview, next call/);
+  assert.match(prompt, /moved you to the panel/, "that company's notes are on record");
+  assert.match(prompt, /1 interviews, 0 talking, 1 new matches, 1 closed/);
+  assert.match(prompt, /1 drafts waiting/);
+  assert.doesNotMatch(prompt, /Quietco/, "no list of other roles to recite");
   assert.doesNotMatch(prompt, /987/);
-  assert.match(prompt, /User: What should I focus on today\?/);
+  assert.match(prompt, /Never list their other processes/);
+  assert.match(prompt, /Never guess a status/);
   assert.match(prompt, /can't send or change anything/);
-  assert.doesNotMatch(prompt, /look things up/i);
-  assert.match(talkPrompt(s, [], { research: true }), /Never send, post, book or change anything/);
+  assert.doesNotMatch(prompt, /Look it up before you answer/, "the plain tool isn't told to search");
+  const looked = talkPrompt(s, [{ who: "you", text: "what is the status with HP?" }], { research: true });
+  assert.match(looked, /nothing found under that name/, "no HP on record says so, instead of letting it guess");
+  assert.match(looked, /Hewlett Packard/);
+  assert.match(looked, /Not being in the pipeline isn't an answer/);
+  assert.match(looked, /Never send, post, book or change anything/);
+});
+
+test("names are found whole and short ones too, and filler words match nothing", () => {
+  const { s } = search();
+  core.addRole(s, { company: "HP Inc", stage: "interview" });
+  core.addRole(s, { company: "Status Quo Labs", stage: "talking" });
+  s.notes.push({ id: "n9", agent: "Email", text: "HP booked your panel for Thursday", ts: "2026-11-08T12:00:00Z" });
+  s.notes.push({ id: "n8", agent: "Email", text: "Chp reached out", ts: "2026-11-08T12:00:00Z" });
+  const lines = onRecord(s, "what is the status with HP?");
+  assert.ok(lines.some((l) => /HP Inc: interview/.test(l)));
+  assert.ok(lines.some((l) => /HP booked your panel/.test(l)));
+  assert.ok(!lines.some((l) => /Status Quo|Chp/.test(l)), "'status' is filler, and HP isn't inside another word");
+  assert.deepEqual(onRecord(s, "what should I do today?"), []);
 });
 
 test("an answer comes back with what to remember, and the chat is kept for next time", async () => {
