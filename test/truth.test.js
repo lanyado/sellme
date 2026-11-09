@@ -118,7 +118,7 @@ test("pay and offers need the user's own yes", () => {
 });
 
 test("found on real data: offering time slots isn't an offer, and \"two updates\" isn't a claim", () => {
-  const asked = 'Nov 7: "i will offer your saved slots first: mon nov 9 at 11:30 or 1:45." Mon 11:30 is offered to Nick.';
+  const asked = 'Nov 7: "i will offer your saved slots first: mon nov 9 at 11:30 or 1:45." Mon 11:30 is offered to Sam.';
   const text = "Hi Standout, this is the AI agent for Maya, with two updates. Maya has new open slots (ET): Wed Nov 11, 10 to 11 AM.";
   const v = check(state(), { text, asked, kind: "slot", sources: ["f1"] });
   assert.ok(!codes(v).includes("pay_or_offer"), "slots aren't pay");
@@ -133,8 +133,8 @@ test("found on real data: offering time slots isn't an offer, and \"two updates\
 });
 
 test("found on real data: when a message arrived isn't a time to book", () => {
-  const asked = "Boardy on LinkedIn, Nov 8, 10:24 AM: offered an intro to Jeff Settle at Runlayer. Not answered yet.";
-  const text = "Yes, please: Maya would like the intro to Jeff Settle at Runlayer. What is the next step?";
+  const asked = "Boardy on LinkedIn, Nov 8, 10:24 AM: offered an intro to Lee Park at Hooli. Not answered yet.";
+  const text = "Yes, please: Maya would like the intro to Lee Park at Hooli. What is the next step?";
   assert.equal(touchesScheduling({ text, asked, kind: "reply" }), false);
   assert.equal(touchesScheduling({ text, asked: "Standout, Nov 7: \"send me new slots\"", kind: "reply" }), true, "slots asked for still count");
   assert.equal(touchesScheduling({ text, asked: "Can you do Mon 11:30 or Tue at 2 PM?", kind: "reply" }), true);
@@ -145,7 +145,7 @@ test("found on real data: a rejected company named as tech in a stack isn't the 
   const s = state();
   core.addRole(s, { company: "MongoDB", stage: "rejected" });
   const stack = "I built it with Python/FastAPI, React/TypeScript, Kubernetes on AWS and MongoDB. It handles tens of suppliers.";
-  assert.ok(!codes(check(s, { text: stack, asked: "What did you build?", kind: "nudge", company: "Axle" })).includes("dead_company"));
+  assert.ok(!codes(check(s, { text: stack, asked: "What did you build?", kind: "nudge", company: "Vandelay" })).includes("dead_company"));
   assert.ok(codes(check(s, { text: "Could you also send me to MongoDB?", kind: "nudge" })).includes("dead_company"));
   assert.ok(codes(check(s, { text: "Any update?", kind: "nudge", company: "MongoDB" })).includes("dead_company"));
 });
@@ -154,12 +154,12 @@ test("a role moved to the agent that submitted the user stops the other-channel 
   const s = state();
   s.roles = []; // The fixture's roles have fixed ids that new ones would repeat.
   core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550001111" });
-  core.addAgent(s, "Sreejan", { channel: "self", handle: "s@example.com" });
-  const role = core.addRole(s, { company: "Axle", agent: "Standout", stage: "talking" });
-  const draft = { text: "Here is my answer.", asked: "What did you build?", kind: "nudge", company: "Axle", agent: "Sreejan" };
+  core.addAgent(s, "Kai", { channel: "self", handle: "s@example.com" });
+  const role = core.addRole(s, { company: "Vandelay", agent: "Standout", stage: "talking" });
+  const draft = { text: "Here is my answer.", asked: "What did you build?", kind: "nudge", company: "Vandelay", agent: "Kai" };
   assert.ok(codes(check(s, draft)).includes("other_channel"));
-  core.setRoleAgent(s, role.id, "sreejan");
-  assert.equal(role.agent, "Sreejan");
+  core.setRoleAgent(s, role.id, "kai");
+  assert.equal(role.agent, "Kai");
   assert.ok(!codes(check(s, draft)).includes("other_channel"));
   assert.throws(() => core.setRoleAgent(s, role.id, "Nobody"), /isn’t one of your agents/);
 });
@@ -385,7 +385,7 @@ test("a day in the past books nothing, so a nudge that says 'since Wednesday' ca
   assert.equal(touchesScheduling({ text: "I'm free Wednesday at 2pm." }), true);
   assert.equal(touchesScheduling({ text: "Since Monday works, can we talk Thursday?" }), true);
   // A loose horizon commits no time, and a nudge's note isn't their question.
-  const boardy = { kind: "nudge", asked: "Push: no new intros since Sreejan (Nov 6)", text: "Who else can you introduce Rotem to this week? Founders building agentic products are the best fit." };
+  const boardy = { kind: "nudge", asked: "Push: no new intros since Kai (Nov 6)", text: "Who else can you introduce Rotem to this week? Founders building agentic products are the best fit." };
   assert.equal(touchesScheduling(boardy), false);
   assert.equal(touchesScheduling({ text: "Any roles next week?", asked: "New matches (Nov 6) for you" }), false);
   assert.equal(touchesScheduling({ text: "Yes, that works.", asked: "Can you meet Tuesday at 3pm?" }), true, "a reply still answers their question");
