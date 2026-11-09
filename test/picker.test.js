@@ -4,14 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, shellWords } from "../lib/agent.js";
+import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords } from "../lib/agent.js";
 import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
 import { actionsFor, buildRows, detailScreen, listScreen, move, refreshConnections, selectable } from "../lib/picker.js";
 import { card, palette } from "../lib/render.js";
-import { findTool, rewrite, rewritePrompt } from "../lib/rewrite.js";
+import { findTool, parseChat, rewrite, rewritePrompt } from "../lib/rewrite.js";
 import { PLACEHOLDER, PROGRAMS, liveLink, signupList } from "../lib/referrals.js";
 import { SCHEDULES, scheduleWarning, scheduledRun, setSchedule, windowsScript } from "../lib/schedule.js";
 import { findOnPath, toolCommand } from "../lib/rewrite.js";
@@ -161,6 +161,53 @@ test("a rewrite never overwrites a draft that changed meanwhile, and escape code
   core.editDraft(s, q.id, "Maya led 6 people.");
   assert.throws(() => core.applyRewrite(s, q.id, result), /changed while/);
   assert.equal(q.text, "Maya led 6 people.");
+});
+
+test("what the user tells SELLME about themselves is remembered, and the draft can say their own rate", async () => {
+  const { s, q } = noted("i request 150$/hr for contract roles");
+  q.asked = "Contract, $82 - $87/hr. Updated resume?";
+  const prompt = rewritePrompt(s, q);
+  assert.match(prompt, /user's own ask/);
+  assert.match(prompt, /remember/);
+  assert.doesNotMatch(prompt, /to talk pay or an offer/); // Their own rate is no reason to refuse.
+  const result = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Thanks Nick. My rate for contract roles is $150/hr, and here is my resume.", sources: ["note", "f1"], remember: ["Asks $150/hr for contract roles"] }) });
+  assert.deepEqual(result.remember, ["Asks $150/hr for contract roles"]);
+  const item = core.applyRewrite(s, q.id, result);
+  const fact = s.facts.find((f) => f.text === "Asks $150/hr for contract roles");
+  assert.ok(fact, "the rate is one of their facts now");
+  assert.match(fact.source, /you told SELLME, about the Fonzi draft/);
+  assert.ok(item.sources.includes(fact.id) && !item.sources.includes("note"));
+  // 150 is backed by their own fact, so nothing blocks it. Pay still needs their own yes.
+  assert.ok(!item.check.reasons.some((r) => r.code === "unsourced_number"));
+  assert.ok(item.check.reasons.some((r) => r.code === "pay_or_offer"));
+  // Saying it again doesn't make a second copy, and the next prompt already knows it.
+  core.keepWhatYouSaid(s, ["asks $150/hr for contract roles"]);
+  assert.equal(s.facts.filter((f) => /150/.test(f.text)).length, 1);
+  assert.match(rewritePrompt(s, q), /Asks \$150\/hr for contract roles/);
+});
+
+test("\"note\" only counts as a source when something was remembered from it", async () => {
+  const { s, q } = noted();
+  const result = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Maya led a team of 6!", sources: ["note", "f1"] }) });
+  assert.deepEqual(result.sources, ["f1"]);
+  assert.deepEqual(result.remember, []);
+  const junk = await rewrite(s, q, { tool: TOOL, run: answer({ text: "Maya led a team of 6!", sources: ["f1"], remember: [3, "", "x".repeat(400), "Prefers remote"] }) });
+  assert.deepEqual(junk.remember, ["Prefers remote"]);
+});
+
+test("a note that says it all is just followed; one that points somewhere gets looked up", () => {
+  assert.equal(pointsElsewhere("i request 150$/hr for contract roles"), false);
+  assert.equal(pointsElsewhere("make it shorter and warmer"), false);
+  assert.equal(pointsElsewhere("read our transcription in wisper flow and adjust your draft"), true);
+  assert.equal(pointsElsewhere("match what I told Ben on LinkedIn"), true);
+  assert.equal(pointsElsewhere("use the dates from my calendar"), true);
+});
+
+test("talking it over remembers what the user says about themselves", () => {
+  const s = state();
+  const q = core.addDraft(s, { agent: "Fonzi", asked: "Rate?", text: "Hi", kind: "nudge" });
+  const out = parseChat(JSON.stringify({ say: "Got it.", text: null, remember: ["Only wants remote roles"] }), s, q);
+  assert.deepEqual(out.remember, ["Only wants remote roles"]);
 });
 
 test("findTool only picks a tool that's really on the PATH", () => {
@@ -1589,7 +1636,7 @@ test("talking a draft over: SELLME knows the draft, the check and the talk so fa
   assert.match(prompt, /The check says: .*pay/);
   assert.match(prompt, /User: why is this flagged\?/);
   assert.doesNotMatch(prompt, /987K/, "the floor never reaches the AI");
-  assert.deepEqual(parseChat('{"say": "It mentions pay.", "text": null}', s, q), { say: "It mentions pay.", text: null, sources: [] });
+  assert.deepEqual(parseChat('{"say": "It mentions pay.", "text": null}', s, q), { say: "It mentions pay.", text: null, sources: [], remember: [] });
   const changed = parseChat('{"say": "Shorter now.", "text": "Yes, glad to talk.", "sources": ["profile.where", "made-up"]}', s, q);
   assert.equal(changed.text, "Yes, glad to talk.");
   assert.ok(!changed.sources.includes("made-up"));
