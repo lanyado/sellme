@@ -96,6 +96,7 @@ Keep this simple for them. `/sellme` does the daily work, and they never have to
 - To send the user's resume with a reply, add `--attach resume`. Never say something is attached without it.
 - `--asked` is only for the user's eyes, never sent, so keep what they actually said: a pay range ("base $200–240k"), dates, names, links. Never shorten it to "shared the base range". Only `--text` goes to them, and the salary floor still never goes in either.
 - `--asked` holds the other side's words and nothing else: who, when, and what they said or asked. Everything you add yourself (what you checked, an earlier choice of the user's, their calendar, why you wrote it this way) goes in `--context "<your notes>"`, which the card shows under "SELLME's notes". Keep it to what helps the user decide.
+- `style` in `brief --json` is how the user likes their messages, learned from their own edits. Follow it for tone and length. It's never a reason to add a claim.
 - Sources are fact ids from `fact list`, or `profile.name`, `profile.roles`, `profile.where`, `profile.floor`. A `nudge`, `slot` or `disclosure` doesn't need one unless it makes a claim.
 - Never leave a blank for the user to fill (`[how many users]`, `[ ]`, `<company>`, `TODO`). They may send it as is, so the helper blocks it. If you don't know a detail, write around it, or `block` the question.
 - If the helper says blocked, don't reword it to get past the check. A blocked draft usually means the claim isn't true. Fix a real mistake, or leave it for the user.

@@ -62,7 +62,9 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 <tr><td>📎 <b>Sends your resume</b></td><td>The real PDF by email, the moment someone asks.</td></tr>
 <tr><td>🧑‍💼 <b>Talks to humans too</b></td><td>Replies to recruiters in your voice, from your own email, iMessage or LinkedIn, in the thread they wrote in.</td></tr>
 <tr><td>🗂️ <b>Keeps your pipeline</b></td><td>Matches, booked calls, rejections and next steps, without you typing any of it.</td></tr>
-<tr><td>🎤 <b>Preps you</b></td><td>Before a call, press p on the role: a two-minute brief on who you're meeting, what's been said, likely questions with answers from your own facts, and what to ask. Then ask SELLME anything about it.</td></tr>
+<tr><td>🎤 <b>Preps you</b></td><td>The day before a call, the brief is already written. Press p on the role: a two-minute brief on who you're meeting, what's been said, likely questions with answers from your own facts, and what to ask. Then ask SELLME anything about it.</td></tr>
+<tr><td>📈 <b>Learns</b></td><td>It learns your style from your edits, nudges each contact on their own clock instead of a fixed number of days, and scores every agent by the interviews it actually got you. After enough unchanged yeses on one topic, it offers to stop asking about that topic.</td></tr>
+<tr><td>🔥 <b>Timeline</b></td><td>Press t in Pipeline: every live role as a strip of days that glows hotter the longer it's gone quiet, with one key to nudge what's stuck.</td></tr>
 <tr><td>🧠 <b>Remembers</b></td><td>What you tell it about yourself, in a note, a talk or an answer ("I ask $120/hr for contract roles", "open to travel"), becomes a fact, so you never say it twice.</td></tr>
 </table>
 
