@@ -74,7 +74,8 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 | A role that doesn't fit | `note` it with the reason. Don't turn it down: that's the user's call. |
 | A thread with a newer message than an open draft answers | Draft against the newest message, with `--received`. The helper drops the old draft. |
 | A question the facts answer | `draft` |
-| A question they don't answer or contradict | Look in their email, call notes, notes and files first, as above. Then `block`, with a reason saying what they do say, and a `--suggest` from what you found |
+| A question nobody can answer for sure (where a detail came from, what a company uses), or one the facts answer only partly | Answer it yourself in a `draft`: say plainly what isn't known, then what the facts do say ("Maya isn't sure where that came from. Her backend work is Python and FastAPI."), citing those facts. That's honest and needs nothing from the user. |
+| A question they don't answer or contradict | Look in their email, call notes, notes and files first, as above. Then `block` only if the answer needs something only the user knows, with a one-sentence reason saying what they do say, and a `--suggest` from what you found |
 | A question about the user's other calls, or who else they're talking to | Don't answer, and don't `block` it. `note` that you left it alone. |
 | Two questions in one message | Handle each one separately |
 | A request for times | Offer only free times from their calendar, then `draft --kind slot`. With no calendar, `block` it and suggest connecting one. |

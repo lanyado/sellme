@@ -239,11 +239,11 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Sell me better: tell the AI how", "Talk it over with SELLME", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Tell the AI how", "Talk it over", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
   assert.match(shown, /Suggested\n/);
-  assert.match(shown, /Note from the AI\n  │ Accepting an intro is yours\./);
+  assert.match(shown, /^Needs you: Accepting an intro is yours\./m);
   assert.doesNotMatch(shown, /✗/);
   core.setSuggestion(s, q.id, "Yes please, thanks Boardy.", { by: "you" });
   assert.match(card(q, c), /Your reply\n *╭─+╮\n *│ Yes please, thanks Boardy\. *│/);
@@ -251,7 +251,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   assert.deepEqual(core.outbox(s).map((o) => o.text), ["Yes please, thanks Boardy."]);
   const lie = core.addDraft(s, { agent: "Boardy", asked: "Team of 20?", text: "Yes, 20.", sources: [] });
   assert.equal(draftActions(lie)[0].id, "edit", "a draft that failed the check leads with fixing it");
-  assert.match(draftActions(lie)[1].label, /anyway: you vouch/);
+  assert.match(draftActions(lie)[1].label, /Send anyway/);
 });
 
 test("recruiters import from CSV, vCard or plain lines", () => {
