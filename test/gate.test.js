@@ -245,7 +245,7 @@ test("a new address from a check needs the user's yes once before Sellme writes 
   assert.equal(first.status, "pending", "approvals for the old address are taken back");
   const next = core.addDraft(s, { agent: "Standout", asked: "Remote?", text: "Yes, remote works too.", sources: ["profile.where"] });
   assert.equal(next.status, "pending");
-  assert.match(next.check.reasons.at(-1).message, /first message to Standout at \+15559999/);
+  assert.match(next.check.reasons.at(-1).message, /First message to Standout/);
   core.approve(s, next.id);
   core.markSent(s, next.id);
   assert.equal(core.addDraft(s, { agent: "Standout", asked: "Hybrid?", text: "NYC or remote works.", sources: ["profile.where"] }).status, "approved");

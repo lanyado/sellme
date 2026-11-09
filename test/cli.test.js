@@ -133,7 +133,7 @@ test("the deck's whole flow works from setup to invoice", () => {
   assert.equal(good.status, 0, good.stderr);
   const lie = shim("draft", "--agent", "Fonzi", "--asked", "Have you managed a team of 20?", "--text", "Yes, a team of 20.", "--source", "f1");
   assert.equal(lie.status, 2);
-  assert.match(lie.stdout, /won’t round up/);
+  assert.match(lie.stdout, /isn’t in your facts/);
   const honest = shim("draft", "--agent", "Boardy", "--asked", "Am I speaking with Maya?", "--text", "No. I’m Maya’s AI agent. Maya is human and approves every message.", "--kind", "disclosure");
   assert.equal(honest.status, 0, honest.stderr);
 

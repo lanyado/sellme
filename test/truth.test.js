@@ -428,3 +428,16 @@ test("saying their own pay range back isn't a claim about the user, but their ot
   const claim = check(s, { text: "I have 10 years of experience.", asked, sources: ["profile.where"] });
   assert.ok(claim.reasons.some((r) => r.code === "unsourced_number"), "their requirement isn't the user's fact");
 });
+
+test("counting what the message just named isn't a claim, but a number about the user still needs a source", () => {
+  const s = freshState();
+  s.profile = { name: "Maya", roles: ["FDE"], where: "NYC", floor: "$987K", never_mention: [] };
+  s.facts.push({ id: "f1", text: "Wants FDE roles in NYC", source: "resume", added: "2026-01-01" });
+  const draft = (text) => check(s, { text, asked: "Which of these fit?", sources: ["f1"], kind: "reply", agent: "Dex", channel: "mcp" });
+  for (const text of ["Yes to Northwind, Globex, Initech and Hooli. All four fit what Maya wants.", "Those three roles look right for Maya.", "All 4 of them work for Maya."]) {
+    assert.ok(!draft(text).reasons.some((r) => r.code === "unsourced_number"), text);
+  }
+  for (const text of ["Maya led a team of four.", "Maya has 4 years of FDE work.", "All four of her launches shipped on time, all 4 years."]) {
+    assert.ok(draft(text).reasons.some((r) => r.code === "unsourced_number"), text);
+  }
+});
