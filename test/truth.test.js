@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as core from "../lib/core.js";
 import { freshState as newState } from "../lib/store.js";
 // These tests check the approval gate itself, so autopilot is off unless a test turns it on.
 const freshState = () => ({ ...newState(), autopilot: false });
@@ -138,6 +139,29 @@ test("found on real data: when a message arrived isn't a time to book", () => {
   assert.equal(touchesScheduling({ text, asked: "Standout, Nov 7: \"send me new slots\"", kind: "reply" }), true, "slots asked for still count");
   assert.equal(touchesScheduling({ text, asked: "Can you do Mon 11:30 or Tue at 2 PM?", kind: "reply" }), true);
   assert.equal(touchesScheduling({ text: "Maya can do Nov 11, 10 AM.", asked: "When?", kind: "reply" }), true);
+});
+
+test("found on real data: a rejected company named as tech in a stack isn't the company", () => {
+  const s = state();
+  core.addRole(s, { company: "MongoDB", stage: "rejected" });
+  const stack = "I built it with Python/FastAPI, React/TypeScript, Kubernetes on AWS and MongoDB. It handles tens of suppliers.";
+  assert.ok(!codes(check(s, { text: stack, asked: "What did you build?", kind: "nudge", company: "Axle" })).includes("dead_company"));
+  assert.ok(codes(check(s, { text: "Could you also send me to MongoDB?", kind: "nudge" })).includes("dead_company"));
+  assert.ok(codes(check(s, { text: "Any update?", kind: "nudge", company: "MongoDB" })).includes("dead_company"));
+});
+
+test("a role moved to the agent that submitted the user stops the other-channel warning", () => {
+  const s = state();
+  s.roles = []; // The fixture's roles have fixed ids that new ones would repeat.
+  core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550001111" });
+  core.addAgent(s, "Sreejan", { channel: "self", handle: "s@example.com" });
+  const role = core.addRole(s, { company: "Axle", agent: "Standout", stage: "talking" });
+  const draft = { text: "Here is my answer.", asked: "What did you build?", kind: "nudge", company: "Axle", agent: "Sreejan" };
+  assert.ok(codes(check(s, draft)).includes("other_channel"));
+  core.setRoleAgent(s, role.id, "sreejan");
+  assert.equal(role.agent, "Sreejan");
+  assert.ok(!codes(check(s, draft)).includes("other_channel"));
+  assert.throws(() => core.setRoleAgent(s, role.id, "Nobody"), /isn’t one of your agents/);
 });
 
 test("revealing the floor is flagged, however it's written", () => {
