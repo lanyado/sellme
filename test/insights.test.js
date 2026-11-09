@@ -4,7 +4,7 @@ import { answerEarned, addAgent, addDraft, addRole, approve, earnedOffer, earned
 import { draftActions, timelineRows } from "../lib/app.js";
 import { DAY, HOUR, nudgePlan, reached, replyTiming, roleStory, scorecard, timeline } from "../lib/insights.js";
 import { dueBriefs } from "../lib/prep.js";
-import { card, diffLines, palette, scorecard as scorecardScreen, timelineAxis, timelineStrip, wordDiff } from "../lib/render.js";
+import { card, diffLines, palette, scorecard as scorecardScreen, timelineAxis, timelineScale, timelineStrip, wordDiff } from "../lib/render.js";
 import { freshState } from "../lib/store.js";
 
 const plain = palette(null);
@@ -212,6 +212,30 @@ test("the timeline sorts by what needs attention, and each row is exactly as wid
   assert.match(rows.find((r) => r.id === call.id).line, /▲/);
   assert.match(rows.panel(rows.find((r) => r.id === stuck.id)), /Quiet for 9d, and a nudge was due after 2d/);
   assert.match(timelineAxis({ today: NOW, days: 30 }), /\d +today/, "the dates never run into today");
+});
+
+test("the timeline's time fits the search: a short history fills the strip instead of huddling against today", () => {
+  const story = (...ages) => ({ events: ages.map((d) => ({ at: ago(d * DAY), type: "you" })), since: NOW.getTime() - Math.min(...ages) * DAY, after: 2 * DAY, waiting: "them", stuck: true, upcoming: null });
+  const short = timelineScale([story(9, 6), story(2)], 80, NOW);
+  assert.ok(short.perDay >= 5, `a ten-day search gets room: ${short.perDay} columns a day`);
+  assert.ok(short.days <= 16, `and no months of empty dates: ${short.days} days`);
+  assert.equal(short.perDay * (short.days + short.ahead) + short.spare, 80, "it uses all the room");
+  const strip = visible(timelineStrip(story(9, 6), { today: NOW, ...short, c: plain }));
+  assert.ok(strip.indexOf("●") < strip.length * 0.5, `the first event isn't jammed at the edge: ${strip}`);
+  const many = Array.from({ length: 60 }, (_, i) => story(1 + (i % 8)));
+  const outlier = timelineScale([...many, story(300)], 80, NOW);
+  assert.ok(outlier.days <= 20, "one stray old event doesn't stretch everyone");
+  const long = timelineScale([story(200)], 80, NOW);
+  assert.equal(long.perDay, 1, "a long search still fits, a column a day");
+  const call = { ...story(3), upcoming: new Date(NOW.getTime() + 4 * DAY + HOUR).toISOString(), waiting: "call" };
+  const withCall = timelineScale([call], 80, NOW);
+  assert.ok(withCall.ahead >= 5, "the future reaches the next call");
+  assert.match(visible(timelineStrip(call, { today: NOW, ...withCall, c: plain })), /│ +▲/);
+  assert.equal(timelineScale([story(2)], 80, NOW).ahead, 2, "and no further than it has to");
+  const axis = timelineAxis({ today: NOW, ...short });
+  assert.equal(axis.length, (short.days + short.ahead) * short.perDay + 1);
+  assert.ok((axis.match(/[A-Z][a-z]{2} \d+/g) ?? []).length >= 3, axis);
+  assert.match(axis, /today/);
 });
 
 test("nudge all writes each stuck contact once, and leaves alone anyone waiting on the user or just written to", () => {

@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords } from "../lib/agent.js";
+import { screenRows, selectionText } from "../lib/picker.js";
 import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
@@ -1647,4 +1648,22 @@ test("talking a draft over: SELLME knows the draft, the check and the talk so fa
   assert.match(parseChat("not json", s, q).refused, /form I could read/);
   const turn = await chatTurn(s, q, history, { tool: { id: "claude", name: "Claude Code", args: [] }, run: async () => '{"say": "Because it talks pay."}' });
   assert.equal(turn.say, "Because it talks pay.");
+});
+
+test("dragging copies what's on screen, without the bar beside a draft or the padding after a line", () => {
+  const rows = ["  Your reply", "  │ Maya led a team of 6.   ", "  │ Happy to talk.", "  ┃ Best, Maya"];
+  assert.equal(selectionText(rows, { x: 4, y: 1 }, { x: 11, y: 1 }), "Maya led");
+  assert.equal(selectionText(rows, { x: 11, y: 1 }, { x: 4, y: 1 }), "Maya led", "either direction");
+  assert.equal(selectionText(rows, { x: 4, y: 1 }, { x: 40, y: 3 }), "Maya led a team of 6.\nHappy to talk.\nBest, Maya");
+  assert.equal(selectionText(rows, { x: 2, y: 0 }, { x: 5, y: 0 }), "Your");
+});
+
+test("a selection reads the plain screen, with color and links gone and a long line split where it wraps", () => {
+  const rows = screenRows({ lines: ["\x1b[1mhello\x1b[0m", "\x1b]8;;https://a.example\x1b\\link\x1b]8;;\x1b\\", "abcdefghijkl"], rows: [0, 1, 2] }, 5);
+  assert.deepEqual(rows, ["hello", "link", "abcde", "fghij", "kl"]);
+});
+
+test("no screen offers keys that are gone: v to select and q to quit", () => {
+  for (const tab of ["Drafts", "Agents", "Pipeline", "Timeline", "Schedule", "Activity"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
+  assert.match(footerLine("Pipeline", 140), /d delete/);
 });
