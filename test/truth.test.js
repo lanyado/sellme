@@ -116,6 +116,21 @@ test("pay and offers need the user's own yes", () => {
   }
 });
 
+test("found on real data: offering time slots isn't an offer, and \"two updates\" isn't a claim", () => {
+  const asked = 'Nov 7: "i will offer your saved slots first: mon nov 9 at 11:30 or 1:45." Mon 11:30 is offered to Nick.';
+  const text = "Hi Standout, this is the AI agent for Maya, with two updates. Maya has new open slots (ET): Wed Nov 11, 10 to 11 AM.";
+  const v = check(state(), { text, asked, kind: "slot", sources: ["f1"] });
+  assert.ok(!codes(v).includes("pay_or_offer"), "slots aren't pay");
+  assert.ok(!codes(v).includes("unsourced_number"), "two updates isn't a claim");
+  for (const t of ["They made Maya an offer.", "Maya has a competing offer.", "Can you send the offer letter?", "We'd like to offer you the role.", "Maya accepted the position.", "Maya has a counteroffer."]) {
+    assert.ok(codes(check(state(), { text: t, kind: "nudge" })).includes("pay_or_offer"), t);
+  }
+  for (const t of ["Maya accepted the invite for Monday.", "Happy to offer two times: Mon or Tue."]) {
+    assert.ok(!codes(check(state(), { text: t, kind: "nudge" })).includes("pay_or_offer"), t);
+  }
+  assert.ok(codes(check(state(), { text: "Maya led two teams.", asked: "Teams?", sources: ["f1"] })).includes("unsourced_number"), "a real claim still counts");
+});
+
 test("revealing the floor is flagged, however it's written", () => {
   for (const text of ["I need $180K.", "I need 180,000."]) {
     const v = check(state(), { text, asked: "Range?", sources: ["profile.floor"] });
