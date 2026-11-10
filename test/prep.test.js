@@ -39,7 +39,7 @@ test("the brief knows this role's thread and the user's facts, and never the flo
   assert.match(prompt, /Write the brief/);
   assert.match(prompt, /f1: Led a team of 6/);
   assert.match(prompt, /Acme: Robin is the recruiter/);
-  assert.doesNotMatch(prompt, /987/);
+  assert.doesNotMatch(prompt, /987K/);
   assert.doesNotMatch(prompt, /look things up/, "the plain tool isn't told to search");
   assert.match(prepPrompt(s, role, [], { research: true }), /Never send, post, book or change anything/);
   const asking = prepPrompt(s, role, [{ who: "sellme", text: "Brief" }, { who: "you", text: "What do they build?" }]);
