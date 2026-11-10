@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { answerEarned, addAgent, addDraft, addRole, approve, earnedOffer, earnedStreak, instruct, markSent, pushList, setAuto, setRole, skip, topicOf } from "../lib/core.js";
+import { BRIEF_VERSION, answerEarned, addAgent, addDraft, addRole, approve, earnedOffer, earnedStreak, instruct, markSent, pushList, setAuto, setRole, skip, topicOf } from "../lib/core.js";
 import { draftActions, timelineRows } from "../lib/app.js";
 import { DAY, HOUR, attributed, talkedAbout, nudgePlan, reached, replyTiming, roleStory, scorecard, timeline } from "../lib/insights.js";
 import { dueBriefs } from "../lib/prep.js";
@@ -267,7 +267,7 @@ test("a call in the next day gets its brief ahead, once, and a failed try isn't 
   assert.deepEqual(dueBriefs(s), [], "just tried");
   near.prep_tried.at = new Date(Date.now() - 7 * HOUR).toISOString();
   assert.equal(dueBriefs(s).length, 1, "tried long enough ago");
-  near.prep = { brief: "Ready", for_call: soon };
+  near.prep = { brief: "Ready", for_call: soon, v: BRIEF_VERSION };
   assert.deepEqual(dueBriefs(s), [], "already written");
 });
 

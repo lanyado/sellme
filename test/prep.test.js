@@ -37,6 +37,11 @@ test("the brief knows this role's thread and the user's facts, and never the flo
   assert.ok(!thread.some((l) => l.includes("Globex")), "another company's notes stay out");
   const prompt = prepPrompt(s, role, [], { recalled: [{ source: "notes", id: "n9", text: "Acme: Robin is the recruiter", when: "2026-11-05" }] });
   assert.match(prompt, /Write the brief/);
+  assert.match(prompt, /Never write about SELLME, its records, drafts or checks, what was or wasn't found/);
+  assert.match(prompt, /never two versions of one fact/);
+  assert.match(prompt, /put it in THREE QUESTIONS TO ASK instead/);
+  assert.match(prompt, /Call time on file: .*may be out of date/);
+  assert.doesNotMatch(prompt, /If something isn't known, say so/, "the brief never narrates what's unknown");
   assert.match(prompt, /f1: Led a team of 6/);
   assert.match(prompt, /Acme: Robin is the recruiter/);
   assert.doesNotMatch(prompt, /987K/);
@@ -44,6 +49,7 @@ test("the brief knows this role's thread and the user's facts, and never the flo
   assert.match(prepPrompt(s, role, [], { research: true }), /Never send, post, book or change anything/);
   const asking = prepPrompt(s, role, [{ who: "sellme", text: "Brief" }, { who: "you", text: "What do they build?" }]);
   assert.match(asking, /Answer their latest question/);
+  assert.doesNotMatch(asking, /Never write about SELLME/, "a follow-up answer can say where something came from");
   assert.match(asking, /User: What do they build\?/);
 });
 
@@ -53,6 +59,9 @@ test("a brief is kept for its call, and a new call needs a new one", async () =>
   assert.equal(result.say, "Who: Robin\nWhen: Mon 2 PM");
   core.savePrep(s, role.id, result.say);
   assert.equal(savedBrief(role), "Who: Robin\nWhen: Mon 2 PM");
+  role.prep = { brief: "Old brief with SELLME's own notes in it", for_call: role.next_call, at: "2026-11-01T00:00:00Z" };
+  assert.equal(savedBrief(role), null, "a brief written the old way is written again");
+  core.savePrep(s, role.id, result.say);
   core.setNextCall(s, role.id, "2030-02-01T19:00:00Z");
   assert.equal(savedBrief(role), null);
   assert.match(parsePrep("not json").refused, /form I could read/);
