@@ -441,3 +441,23 @@ test("counting what the message just named isn't a claim, but a number about the
     assert.ok(draft(text).reasons.some((r) => r.code === "unsourced_number"), text);
   }
 });
+
+test("a clock time that points back at an earlier message books nothing, but one that proposes a time still does", () => {
+  const asked = (text) => touchesScheduling({ text: "Yes, Maya would like that.", asked: text, kind: "reply" });
+  for (const text of [
+    "i am still looking. want me to keep hunting? (Also still open from 9:17 AM: northwind, globex and initech, which are a yes?)",
+    "Newest text (1:11 PM) asks about tech lead roles.",
+    "You wrote at 2:05 PM that Globex was in process.",
+    "Still unanswered since 9am: the intro to Lee.",
+    "As of 4 PM yesterday nothing was confirmed.",
+  ]) assert.equal(asked(text), false, text);
+  for (const text of [
+    "Can you do 2pm?",
+    "I'm free from 2pm to 4pm, does that work?",
+    "Let's talk at 3 PM.",
+    "Are you free at 3pm?",
+    "How about tomorrow at 9:17 AM?",
+    "Still open from 9:17 AM, so can we talk at 3pm?",
+  ]) assert.equal(asked(text), true, text);
+  assert.equal(touchesScheduling({ text: "Maya is free at 3pm.", asked: "Newest text (1:11 PM).", kind: "reply" }), true, "a time in the reply is still a commitment");
+});
