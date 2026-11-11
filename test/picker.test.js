@@ -1346,7 +1346,7 @@ test("the live line says it's selling you, what it's reading, and for how long",
   assert.match(line, /Selling you to every agent · Reading Fonzi 0:42$/);
 });
 
-// The LinkedIn tool goes first; these tests are about the Chrome backup, so the tool is "not connected" in them.
+// A LinkedIn reply goes through Chrome; a plan that isn't Chrome fails here, so these tests catch one sneaking back.
 const toolDown = (r) => (p, o) => (o.fast?.chrome ? r(p, o) : { ok: false, output: "not connected", failed: "not connected" });
 
 test("a LinkedIn send counts only when the run saw it land, not when the click went through", () => withSandbox(async () => {
@@ -1740,7 +1740,7 @@ test("an older draft's header comes out of its text: who and when go by the name
   assert.ok(lines.some((l) => /^  │ Hello there │$/.test(l)));
 });
 
-test("a LinkedIn reply goes through the LinkedIn tool first, and Chrome is the backup, but never after a send", () => withSandbox(async () => {
+test("a LinkedIn reply goes into its conversation in Chrome, never through the tool that opens a new chat", () => withSandbox(async () => {
   const { sendOutbox } = await import("../lib/agent.js");
   withState((s) => {
     Object.assign(s, { setup_done: true });
@@ -1750,30 +1750,23 @@ test("a LinkedIn reply goes through the LinkedIn tool first, and Chrome is the b
   });
   const id = load().queue[0].id;
   const plans = [];
-  const click = (run) => withState((s) => {
-    const q = s.queue.find((x) => x.id === id);
-    q.send_cleared = { run, ts: new Date().toISOString() };
-    q.send_confirmed = { run, ts: new Date().toISOString() };
-  });
-  const toolWorks = async (_, { run, fast }) => { plans.push(fast); click(run); return { ok: true, output: "sent" }; };
-  assert.equal((await sendOutbox(id, { runner: toolWorks })).sent, true);
-  assert.deepEqual(plans.map((p) => p.tool), ["mcp__linkedin__send_message"], "no browser when the tool sent it");
-  withState((s) => { const q = s.queue.find((x) => x.id === id); Object.assign(q, { status: "approved", sent_at: null, send_cleared: null, send_confirmed: null }); });
-  plans.length = 0;
-  const toolDownThenChrome = async (_, { run, fast }) => {
+  const chrome = async (_, { run, fast }) => {
     plans.push(fast);
-    if (!fast.chrome) return { ok: false, output: "not connected", failed: "not connected" };
-    click(run);
+    withState((s) => {
+      const q = s.queue.find((x) => x.id === id);
+      q.send_cleared = { run, ts: new Date().toISOString() };
+      q.send_confirmed = { run, ts: new Date().toISOString() };
+    });
     return { ok: true, output: "sent" };
   };
-  assert.equal((await sendOutbox(id, { runner: toolDownThenChrome })).sent, true);
-  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [false, true]);
-  // A send the tool already made that didn't read back may have posted: no second send in Chrome.
-  withState((s) => { const q = s.queue.find((x) => x.id === id); Object.assign(q, { status: "approved", sent_at: null, send_cleared: null, send_confirmed: null }); });
-  plans.length = 0;
-  const clicked = async (_, { run, fast }) => { plans.push(fast); click(run); return { ok: true, output: "failed: not sure" }; };
-  await sendOutbox(id, { runner: clicked });
-  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [false]);
+  assert.equal((await sendOutbox(id, { runner: chrome })).sent, true);
+  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [true]);
+  assert.ok(!plans[0].tools.includes("mcp__linkedin__send_message"));
+  // The gate refuses the tool's send_message on a reply, from any run.
+  withState((s) => Object.assign(s.queue.find((x) => x.id === id), { status: "approved", sent_at: null, send_cleared: null, send_confirmed: null }));
+  const said = gate({ tool_name: "mcp__linkedin__send_message", tool_input: { linkedin_username: "linkedin.com/in/ben-ford-test", message: "Yes, glad to.", confirm_send: true } }, load(), { run: "r9" });
+  assert.equal(said.decision, "deny");
+  assert.match(said.reason, /new LinkedIn chat/);
 }));
 
 // ---------------------------------------------------------------- LinkedIn's one session
