@@ -156,7 +156,7 @@ test("the diff marks what changed word by word, and keeps an email's lines", () 
   const marked = diffLines("Hi Sam,\n\nHappy to chat soon.", "Hi Sam,\n\nHappy to talk today.", 40, plain);
   assert.deepEqual(marked.lines.map((l) => l.text), ["Hi Sam,", "", "Happy to -{chat soon.} +{talk today.}"]);
   assert.deepEqual([marked.added, marked.removed], [2, 2]);
-  assert.equal(diffLines("Completely unrelated words here today.", "Nothing in common whatsoever my friend.", 40, plain), null, "a rewrite isn't a word soup");
+  assert.ok(diffLines("Completely unrelated words here today.", "Nothing in common whatsoever my friend.", 40, plain).added > 0, "even a full rewrite shows in red and green");
   const long = "word ".repeat(60);
   for (const line of diffLines(long, `${long}more`, 30, plain).lines) assert.ok(line.text.length <= 30, line.text);
   assert.equal(wordDiff("x ".repeat(1000), "y ".repeat(1000)), null, "too long to compare");
@@ -175,8 +175,8 @@ test("a card shows what changed only when asked, and offers to hide it", () => {
   assert.equal(draftActions(q, { diff: false }).find((a) => a.id === "diff").label, "Show what changed");
   q.text = "Nothing alike remains between these sentences now.";
   const rewritten = card(q, plain, "", 80, { diff: true });
-  assert.match(rewritten, /Before/);
-  assert.match(rewritten, /rewritten/);
+  assert.doesNotMatch(rewritten, /Before/, "a full rewrite is still shown in red and green, never as before and after");
+  assert.match(rewritten, /\+\{Nothing/);
 });
 
 test("the timeline sorts by what needs attention, and each row is exactly as wide as the terminal allows", () => {

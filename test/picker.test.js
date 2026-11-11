@@ -18,6 +18,7 @@ import { PLACEHOLDER, PROGRAMS, liveLink, signupList } from "../lib/referrals.js
 import { SCHEDULES, scheduleWarning, scheduledRun, setSchedule, windowsScript } from "../lib/schedule.js";
 import { findOnPath, toolCommand } from "../lib/rewrite.js";
 import { helperCommand, shimCmd } from "../lib/install.js";
+import { linkedinLogin as linkedinLoginFrom } from "../lib/linkedin.js";
 import { freshState as newState, load, withState } from "../lib/store.js";
 // These tests check the approval gate itself, so autopilot is off unless a test turns it on.
 const freshState = () => ({ ...newState(), autopilot: false });
@@ -1769,3 +1770,70 @@ test("a LinkedIn reply goes through the LinkedIn tool first, and Chrome is the b
   await sendOutbox(id, { runner: clicked });
   assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [false]);
 }));
+
+// ---------------------------------------------------------------- LinkedIn's one session
+test("LinkedIn sign-in trouble is read from a run's words, and a sent message isn't", async () => {
+  const { saysSignedOut } = await import("../lib/linkedin.js");
+  for (const t of ["failed: the LinkedIn session expired and a login window opened.", "LinkedIn sign-in was still in progress, so the message was not sent.", "Error: Page.goto: net::ERR_TOO_MANY_REDIRECTS", "LinkedIn showed a sign-in page that asks for the password"]) assert.ok(saysSignedOut(t), t);
+  for (const t of ["sent", "Read 3 conversations, nothing new.", "Dana asked about a sign-in bonus"]) assert.ok(!saysSignedOut(t), t);
+});
+
+test("only one SELLME run uses LinkedIn at a time, and a lock left by a dead process doesn't block it", async () => {
+  const { withLinkedin } = await import("../lib/linkedin.js");
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "sellme-li-")), "linkedin.lock");
+  const order = [];
+  const slow = (name) => withLinkedin(async () => { order.push(`${name} in`); await new Promise((r) => setTimeout(r, 30)); order.push(`${name} out`); return name; }, { file, poll: 5 });
+  assert.deepEqual(await Promise.all([slow("a"), slow("b")]), ["a", "b"]);
+  assert.deepEqual(order, ["a in", "a out", "b in", "b out"]);
+  fs.writeFileSync(file, JSON.stringify({ pid: 999999, at: Date.now() }));
+  assert.equal(await withLinkedin(async () => "free", { file }), "free", "a dead process's lock is cleared");
+  fs.writeFileSync(file, JSON.stringify({ pid: process.pid, at: Date.now() }));
+  assert.deepEqual(await withLinkedin(async () => "never", { file, wait: 20, poll: 5 }), { busy: true });
+  fs.rmSync(file);
+});
+
+test("a run leaves the LinkedIn tool alone unless it's the LinkedIn lane", () => {
+  const args = agentArgs("/sellme run", { settings: "s.json", persona: "p.md" });
+  assert.equal(args[args.indexOf("--disallowedTools") + 1], "mcp__linkedin");
+  assert.ok(!agentArgs("/sellme run", { settings: "s.json", persona: "p.md", linkedin: true }).includes("--disallowedTools"));
+});
+
+test("once LinkedIn signs SELLME out, nothing calls it again until the user signs in", () => withSandbox(async () => {
+  const { sendOutbox } = await import("../lib/agent.js");
+  const { checkLanes } = await import("../lib/schedule.js");
+  withState((s) => {
+    Object.assign(s, { setup_done: true });
+    core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/danaford7" });
+    core.addRecruiter(s, "Sam Rivera", { handle: "linkedin.com/in/samrivera42" });
+    for (const [agent, thread] of [["Dana Ford", "2-AbC123xyz"], ["Sam Rivera", null]]) {
+      // Sam's is a first message: nothing asked, no conversation yet.
+      const q = core.addDraft(s, { agent, ...(thread ? { asked: "Talk today?", thread } : {}), text: `Hi ${agent}, glad to connect.`, kind: "nudge" });
+      if (q.status !== "approved") core.approve(s, q.id);
+    }
+  });
+  const [reply, first] = load().queue.map((q) => q.id);
+  const plans = [];
+  const expired = async (_, { fast }) => { plans.push(fast); return { ok: false, output: "failed: the LinkedIn session expired and a login window opened.", failed: "Claude Code stopped" }; };
+  await sendOutbox(first, { runner: expired });
+  assert.equal(load().connections.LinkedIn?.status, "signin", "the sign-in is recorded");
+  plans.length = 0;
+  assert.match((await sendOutbox(first, { runner: expired })).why, /signed SELLME out/);
+  assert.equal(plans.length, 0, "a first message waits: no tool call, no new sign-in window");
+  await sendOutbox(reply, { runner: expired });
+  assert.ok(plans.length && plans.every((p) => p.chrome), "a reply goes through Chrome, never the LinkedIn tool");
+  const lanes = checkLanes(load(), { platform: "linux" }).map((l) => l.id);
+  assert.ok(!lanes.includes("linkedin"), "a check skips LinkedIn while it's signed out");
+  // Signing in again (the connect step) turns it back on.
+  withState((s) => core.setConnection(s, "LinkedIn", "ok"));
+  assert.ok(checkLanes(load(), { platform: "linux" }).map((l) => l.id).includes("linkedin"));
+}));
+
+test("the LinkedIn sign-in is the LinkedIn tool's own --login, from the user's settings", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sellme-home-"));
+  fs.writeFileSync(path.join(dir, ".claude.json"), JSON.stringify({ mcpServers: { linkedin: { command: "/opt/uv", args: ["run", "-m", "linkedin_mcp_server"], env: { A: "1" } } } }));
+  const steps = stepsFor({ name: "LinkedIn", kind: "signin", url: null }, [], { login: () => linkedinLoginFrom(dir) });
+  assert.equal(steps[0].kind, "run");
+  assert.deepEqual([steps[0].bin, ...steps[0].args], ["/opt/uv", "run", "-m", "linkedin_mcp_server", "--login"]);
+  assert.deepEqual(steps[0].env, { A: "1" });
+  assert.equal(stepsFor({ name: "LinkedIn", kind: "signin", url: null }, [], { login: () => null })[0].kind, "text");
+});
