@@ -24,6 +24,7 @@ const codes = (v) => v.reasons.map((r) => r.code);
 test("numbers ignores times and dates but normalizes amounts", () => {
   assert.deepEqual(numbers("Thu 4 PM or Nov 3 at 11:30am"), []);
   assert.deepEqual(numbers("11/3 works"), []);
+  assert.deepEqual(numbers("the next step in the three-step process, or 2 rounds"), []);
   assert.deepEqual(numbers("a team of 20"), ["20"]);
   assert.deepEqual(numbers("$180K"), ["180000"]);
   assert.deepEqual(numbers("$180,000"), ["180000"]);
@@ -460,4 +461,20 @@ test("a clock time that points back at an earlier message books nothing, but one
     "Still open from 9:17 AM, so can we talk at 3pm?",
   ]) assert.equal(asked(text), true, text);
   assert.equal(touchesScheduling({ text: "Maya is free at 3pm.", asked: "Newest text (1:11 PM).", kind: "reply" }), true, "a time in the reply is still a commitment");
+});
+
+test("a draft built from the user's own words isn't checked against facts", () => {
+  const r = check(freshState(), { text: "My base is around $987K.", asked: "Thoughts?", sources: ["user"] });
+  assert.ok(!r.reasons.some((x) => ["unknown_source", "unsourced_number"].includes(x.code)));
+});
+
+test("pay they quote that tops out under the user's floor says so, and never prints the floor", () => {
+  const s = freshState();
+  s.profile = { name: "Maya", roles: ["engineer"], where: "NYC", floor: "$300K base", never_mention: [] };
+  const v = check(s, { text: "Thanks, can you send the job description?", asked: "NYC roles at $175-195K base, interested?", sources: [] });
+  const m = v.reasons.find((r) => r.code === "pay_or_offer").message;
+  assert.match(m, /\$195K, under your floor/);
+  assert.ok(!/300/.test(m));
+  const ok = check(s, { text: "Thanks, can you send the job description?", asked: "NYC roles at $300-340K base, interested?", sources: [] });
+  assert.equal(ok.reasons.find((r) => r.code === "pay_or_offer").message, "Touches pay or an offer.");
 });
