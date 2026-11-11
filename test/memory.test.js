@@ -112,3 +112,8 @@ test("a new rate replaces the old one: the AI sees only the new one, and old dra
   // The memory gets the replacement too, so its search skips the old rate.
   assert.equal(documents(s).facts.find((d) => d.external_id === fresh).replaces, old);
 });
+
+test("an AI rewrite of the user's own answer no longer counts as the user's words", () => {
+  const s = newState();
+  assert.deepEqual(parseRewrite(JSON.stringify({ text: "x", sources: [] }), s, { sources: ["user"] }).sources, []);
+});
