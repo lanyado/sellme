@@ -1821,6 +1821,11 @@ test("once LinkedIn signs SELLME out, nothing calls it again until the user sign
   assert.equal(plans.length, 0, "a first message waits: no tool call, no new sign-in window");
   await sendOutbox(reply, { runner: expired });
   assert.ok(plans.length && plans.every((p) => p.chrome), "a reply goes through Chrome, never the LinkedIn tool");
+  assert.ok(plans.every((p) => !p.tools?.some((t) => t.startsWith("mcp__linkedin"))), "not even to look the conversation up");
+  withState((s) => { s.queue.find((q) => q.id === reply).thread = null; });
+  plans.length = 0;
+  assert.match((await sendOutbox(reply, { runner: expired })).why, /signed SELLME out/, "with no conversation on record it waits");
+  assert.equal(plans.length, 0);
   const lanes = checkLanes(load(), { platform: "linux" }).map((l) => l.id);
   assert.ok(!lanes.includes("linkedin"), "a check skips LinkedIn while it's signed out");
   // Signing in again (the connect step) turns it back on.
