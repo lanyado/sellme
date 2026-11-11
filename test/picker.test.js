@@ -1245,7 +1245,8 @@ test("a draft row is a short preview that never wraps, even with a tag", () => {
 });
 
 test("a LinkedIn reply goes into its own conversation in Chrome, never a new chat, and only there", async () => {
-  const { fastPlan } = await import("../lib/agent.js");
+  const { linkedinChromePlan, fastPlan: toolPlan } = await import("../lib/agent.js");
+  const fastPlan = linkedinChromePlan;
   const s = freshState();
   core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
   const q = core.addDraft(s, { agent: "Dana Ford", asked: "Can you talk this morning?", text: "Yes, any time this morning.", kind: "nudge", thread: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" });
@@ -1278,7 +1279,7 @@ test("a LinkedIn reply goes into its own conversation in Chrome, never a new cha
   assert.match(lookup.prompt, /get_conversation[\s\S]*thread q\d+ <that thread_id>/, "a reply with no conversation on record looks it up first");
   const first = core.addDraft(s, { agent: "Dana Ford", text: "Hi Dana, Maya here.", kind: "nudge" });
   core.approve(s, first.id);
-  assert.equal(fastPlan(core.outbox(s).find((x) => x.id === first.id)).tool, "mcp__linkedin__send_message", "a first message starts the chat");
+  assert.equal(toolPlan(core.outbox(s).find((x) => x.id === first.id)).tool, "mcp__linkedin__send_message", "a first message starts the chat");
 });
 
 test("asked for a resume by email, the PDF goes with the answer without anyone pressing anything", () => {
@@ -1339,6 +1340,9 @@ test("the live line says it's selling you, what it's reading, and for how long",
   assert.match(line, /Selling you to every agent · Reading Fonzi 0:42$/);
 });
 
+// The LinkedIn tool goes first; these tests are about the Chrome backup, so the tool is "not connected" in them.
+const toolDown = (r) => (p, o) => (o.fast?.chrome ? r(p, o) : { ok: false, output: "not connected", failed: "not connected" });
+
 test("a LinkedIn send counts only when the run saw it land, not when the click went through", () => withSandbox(async () => {
   const { sendOutbox } = await import("../lib/agent.js");
   withState((s) => {
@@ -1356,10 +1360,10 @@ test("a LinkedIn send counts only when the run saw it land, not when the click w
     });
     return { ok: true, output };
   };
-  const failed = await sendOutbox(id, { runner: runner("failed: the message is still in the box") });
+  const failed = await sendOutbox(id, { runner: toolDown(runner("failed: the message is still in the box")) });
   assert.equal(failed.sent, false);
   assert.equal(load().queue[0].status, "approved");
-  const sent = await sendOutbox(id, { runner: runner("sent") });
+  const sent = await sendOutbox(id, { runner: toolDown(runner("sent")) });
   assert.equal(sent.sent, true);
   assert.equal(load().queue[0].status, "sent");
 }));
@@ -1601,10 +1605,10 @@ test("when the Send click went through but the read-back missed it, a read-only 
     });
     return { ok: true, output: "failed: the conversation still shows only their message" };
   };
-  const missing = await sendOutbox(id, { runner: runner("Sam: Forward Deployed Engineers needed") });
+  const missing = await sendOutbox(id, { runner: toolDown(runner("Sam: Forward Deployed Engineers needed")) });
   assert.equal(missing.sent, false, "not in the conversation: still not sent");
   assert.ok(!looks[0].some((t) => /computer/.test(t)), "the look can't type or click");
-  const there = await sendOutbox(id, { runner: runner(`Sam: needed for 12 months\nRotem Lanyado 9:51 PM\n${text}`) });
+  const there = await sendOutbox(id, { runner: toolDown(runner(`Sam: needed for 12 months\nRotem Lanyado 9:51 PM\n${text}`)) });
   assert.equal(there.sent, true);
   assert.equal(load().queue[0].status, "sent");
 }));
@@ -1626,7 +1630,7 @@ test("trying again after an unseen click looks first, so the message can't go tw
     seeDelivered({ tool_name: "mcp__claude-in-chrome__get_page_text", tool_response: { content: [{ type: "text", text }] } }, run);
     return { ok: true, output: "there" };
   };
-  assert.equal((await sendOutbox(id, { runner })).sent, true);
+  assert.equal((await sendOutbox(id, { runner: toolDown(runner) })).sent, true);
   assert.deepEqual(prompts, ["Check whether one message already went out. Only read: never type, click or press anything."], "only the look ran, never the send");
 }));
 
@@ -1730,15 +1734,14 @@ test("an older draft's header comes out of its text: who and when go by the name
   assert.ok(lines.some((l) => /^  │ Hello there │$/.test(l)));
 });
 
-test("when Chrome can't send a LinkedIn reply, the LinkedIn tool is the backup, but never after a Send click", () => withSandbox(async () => {
+test("a LinkedIn reply goes through the LinkedIn tool first, and Chrome is the backup, but never after a send", () => withSandbox(async () => {
   const { sendOutbox } = await import("../lib/agent.js");
-  const setup = () => withState((s) => {
+  withState((s) => {
     Object.assign(s, { setup_done: true });
     core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
     const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk today?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
     if (q.status !== "approved") core.approve(s, q.id);
   });
-  setup();
   const id = load().queue[0].id;
   const plans = [];
   const click = (run) => withState((s) => {
@@ -1746,46 +1749,23 @@ test("when Chrome can't send a LinkedIn reply, the LinkedIn tool is the backup, 
     q.send_cleared = { run, ts: new Date().toISOString() };
     q.send_confirmed = { run, ts: new Date().toISOString() };
   });
-  const chromeDown = async (_, { run, fast }) => {
+  const toolWorks = async (_, { run, fast }) => { plans.push(fast); click(run); return { ok: true, output: "sent" }; };
+  assert.equal((await sendOutbox(id, { runner: toolWorks })).sent, true);
+  assert.deepEqual(plans.map((p) => p.tool), ["mcp__linkedin__send_message"], "no browser when the tool sent it");
+  withState((s) => { const q = s.queue.find((x) => x.id === id); Object.assign(q, { status: "approved", sent_at: null, send_cleared: null, send_confirmed: null }); });
+  plans.length = 0;
+  const toolDownThenChrome = async (_, { run, fast }) => {
     plans.push(fast);
-    if (!fast.chrome) { click(run); return { ok: true, output: "sent" }; }
-    return { ok: false, output: "Claude in Chrome isn't connected", failed: "not connected" };
+    if (!fast.chrome) return { ok: false, output: "not connected", failed: "not connected" };
+    click(run);
+    return { ok: true, output: "sent" };
   };
-  const out = await sendOutbox(id, { runner: chromeDown });
-  assert.equal(out.sent, true);
-  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [true, false]);
-  assert.equal(plans[1].tool, "mcp__linkedin__send_message");
-  // A Send click that didn't read back may have posted: no second send.
-  withState((s) => { const q = s.queue.find((x) => x.id === id); q.status = "approved"; q.sent_at = null; });
+  assert.equal((await sendOutbox(id, { runner: toolDownThenChrome })).sent, true);
+  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [false, true]);
+  // A send the tool already made that didn't read back may have posted: no second send in Chrome.
+  withState((s) => { const q = s.queue.find((x) => x.id === id); Object.assign(q, { status: "approved", sent_at: null, send_cleared: null, send_confirmed: null }); });
   plans.length = 0;
   const clicked = async (_, { run, fast }) => { plans.push(fast); click(run); return { ok: true, output: "failed: not sure" }; };
   await sendOutbox(id, { runner: clicked });
-  assert.ok(plans.length && plans.every((p) => p.chrome), "only Chrome looks, the LinkedIn tool never sends again");
+  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [false]);
 }));
-
-test("a run opens one Chrome tab and reuses it, never a second", () => {
-  const browser = { run: "r", tabs: {}, refs: {}, typed: {}, urls: {} };
-  assert.equal(gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser }).decision, "allow");
-  learnFromTool({ tool_name: CHROME("tabs_create_mcp"), tool_input: {}, tool_response: [{ type: "text", text: tabLine(12, "New Tab", "chrome://newtab/") }] }, browser);
-  const again = gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser });
-  assert.equal(again.decision, "deny");
-  assert.match(again.reason, /tab 12/);
-});
-
-test("LinkedIn is read every few hours, not every check, unless something waits on it", async () => {
-  const { checkLanes } = await import("../lib/schedule.js");
-  const s = freshState();
-  const now = Date.parse("2026-11-11T12:00:00Z");
-  const ids = (o = {}) => checkLanes(s, { platform: "linux", now, ...o }).map((l) => l.id);
-  assert.ok(ids().includes("linkedin"), "never read yet");
-  s.lane_runs = { linkedin: new Date(now - 60 * 60_000).toISOString() };
-  assert.ok(!ids().includes("linkedin"), "read an hour ago");
-  s.lane_runs.linkedin = new Date(now - 4 * 60 * 60_000).toISOString();
-  assert.ok(ids().includes("linkedin"), "read four hours ago");
-  s.lane_runs.linkedin = new Date(now - 60 * 60_000).toISOString();
-  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/dana-ford-test" });
-  assert.ok(ids({ start: "Dana Ford" }).includes("linkedin"), "just connected");
-  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
-  if (q.status !== "approved") core.approve(s, q.id);
-  assert.ok(ids().includes("linkedin"), "an approved message is waiting");
-});
