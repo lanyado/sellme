@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as core from "../lib/core.js";
 import { TABS, footerLine } from "../lib/app.js";
-import { needsLookup, onRecord, parseTalk, saveChat, talkPrompt, talkTurn } from "../lib/talk.js";
+import { clearChat, needsLookup, onRecord, parseTalk, saveChat, talkPrompt, talkTurn } from "../lib/talk.js";
 import { freshState } from "../lib/store.js";
 
 function search() {
@@ -105,4 +105,18 @@ test("a look-up is quick and quiet: a fast model, only read tools, no Chrome, an
   let prepSeen;
   await researchPrep(s, s.roles[0], [], { runner: async (_, opts) => ((prepSeen = opts), { ok: true, output: '{"say":"Brief"}' }) });
   assert.equal(prepSeen.chrome, false, "prep's look-ups don't open the browser either");
+});
+
+test("/clear archives the conversation for the memory, empties the chat, and the floor stays out", async () => {
+  const { documents } = await import("../lib/memory.js");
+  const s = freshState();
+  s.profile = { name: "Maya", roles: ["engineer"], where: "NYC", floor: "$987K base", never_mention: [] };
+  clearChat(s, [{ who: "you", text: "I prefer remote roles" }, { who: "sellme", text: "Noted.", note: true }, { who: "sellme", text: "Remote it is." }]);
+  assert.deepEqual(s.chat, []);
+  assert.equal(s.chat_archive[0].messages.length, 2); // notes aren't kept
+  assert.match(documents(s).chats[0].content, /User: I prefer remote roles SELLME: Remote it is\./);
+  clearChat(s, []); // an empty chat archives nothing
+  assert.equal(s.chat_archive.length, 1);
+  clearChat(s, [{ who: "you", text: "my floor is 987K" }]);
+  assert.equal(documents(s).chats.length, 1);
 });
