@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords, stopReply } from "../lib/agent.js";
 import { screenRows, selectionText } from "../lib/picker.js";
 import { sentLine, theirMessage } from "../lib/render.js";
-import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, alertLine, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -73,7 +73,7 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "talk", "skip", "back"]);
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "talk", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
-  assert.equal(activityRows(s)[1].alert, true);
+  assert.equal(activityRows(s)[1].headline, "An offer came in");
   assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
   const hired = { ...freshState(), hired: true, paused: true };
   assert.equal(summary(hired), "You’re hired. Goal reached · not checked yet");
@@ -1875,4 +1875,31 @@ test("the tab a run's tabs_context_mcp makes counts as its own, in the words Cla
   assert.deepEqual(browser.opened, ["1320382639", "1320382640"], "if one slips through, it must be closed too");
   learnFromTool({ tool_name: CHROME("tabs_close_mcp"), tool_input: { tabId: 1320382639 }, tool_response: [{ type: "text", text: "Closed tab 1320382639." }] }, browser);
   assert.match(JSON.parse(stopReply(browser)).reason, /1320382640/);
+});
+
+test("alerts read as decisions: grouped by what happened, with who and when, and SELLME's bookkeeping isn't one", () => {
+  const s = freshState();
+  core.addAgent(s, "Dex", { channel: "mcp" });
+  core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
+  const now = Date.now();
+  s.alerts.push(
+    { id: "a1", agent: "Dex", text: "Possible double submission: Dex is now submitting you to Acme, and Sam already did.", ts: new Date(now - 3 * 3600_000).toISOString() },
+    { id: "a2", agent: "Sam Rivera", text: "Sam Rivera: Possible double submission. Sam named Acme too.", ts: new Date(now - 2 * 3600_000).toISOString() },
+    { id: "a3", agent: "Dex", text: "Calendar clash Fri Nov 13: your 3 PM call overlaps the Acme screen.", ts: new Date(now - 30 * 60_000).toISOString() },
+    { id: "a4", agent: "Dex", text: "q109 (nudge to Dex) was auto-approved by the helper and sent by the app.", ts: new Date(now - 60_000).toISOString() },
+  );
+  const rows = activityRows(s, now);
+  assert.equal(rows[0].heading, "Needs your eyes · 3");
+  const groups = rows.filter((r) => r.alertGroup);
+  assert.deepEqual(groups.map((r) => [r.headline, r.count, r.who]), [["Calendar clash Fri Nov 13", 1, "Dex"], ["Possible double submission", 2, "Dex, Sam Rivera"]]);
+  assert.ok(rows.some((r) => !r.alertGroup && /q109/.test(r.text ?? "")), "bookkeeping reads as history");
+  assert.equal(core.alertBody(s.alerts[1]), "Sam named Acme too.");
+  const line = alertLine(groups[1], " ", palette("truecolor"), 100).replace(/\x1b\[[0-9;]*m/g, "");
+  assert.match(line, /! Possible double submission \(2\)\s+Dex, Sam Rivera · 2h ago$/);
+  assert.ok(line.length <= 100);
+  // A run's bookkeeping goes to Activity as a note, not an alert.
+  const filed = core.addAlert(s, "Dex", "Duplicate in outbox: q62 is already sent as q61.");
+  assert.equal(filed.note, true);
+  assert.equal(s.alerts.length, 4);
+  assert.equal(core.addAlert(s, "Dex", "Dex offered $987K. Don't reply until you decide.", "Offer from Dex").title, "Offer from Dex");
 });
