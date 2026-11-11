@@ -1265,8 +1265,11 @@ test("a LinkedIn reply goes into its own conversation in Chrome, never a new cha
   assert.ok(!plan.tools.includes("mcp__linkedin__send_message"), "never the tool that starts a new chat");
   const nav = (url) => gate({ tool_name: "mcp__claude-in-chrome__navigate", tool_input: { url } }, s, { run: "r1" }).decision;
   assert.equal(nav("https://www.linkedin.com/messaging/thread/2-AbC123xyz/"), "allow");
-  assert.equal(nav("https://www.linkedin.com/messaging/thread/2-SomeoneElse/"), "deny");
+  assert.equal(nav("https://www.linkedin.com/messaging/thread/2-SomeoneElse/"), "allow", "reading any conversation is fine; typing in it isn't");
+  assert.equal(nav("https://www.linkedin.com/dms/prv/D4E10AQ/messaging-attachmentFile/0/jd.pdf"), "allow", "a file sent in a message can be read");
+  assert.equal(nav("https://media.licdn.com/dms/document/C4E10AQ/jd.pdf"), "allow");
   assert.equal(nav("https://www.linkedin.com/feed/"), "deny");
+  assert.equal(gate({ tool_name: "mcp__claude-in-chrome__navigate", tool_input: { url: "https://www.linkedin.com/dms/prv/x/jd.pdf" } }, s, { run: "r1", linkedin: false }).decision, "deny", "only a LinkedIn run opens LinkedIn");
   const browser = { tabs: { 5: "linkedin.com", 6: "linkedin.com" }, urls: { 5: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/", 6: "https://www.linkedin.com/messaging/thread/2-SomeoneElse/" }, refs: { 5: { ref_1: "box" }, 6: { ref_1: "box" } }, typed: {} };
   const type = (tabId) => gate({ tool_name: "mcp__claude-in-chrome__computer", tool_input: { action: "type", tabId, text: "Yes, any time this morning." } }, s, { run: "r1", browser }).decision;
   assert.equal(type(5), "allow");

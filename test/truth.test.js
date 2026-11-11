@@ -480,3 +480,12 @@ test("pay they quote that tops out under the user's floor says so, and never pri
   const ok = check(s, { text: "Thanks, can you send the job description?", asked: "NYC roles at $300-340K base, interested?", sources: [] });
   assert.equal(ok.reasons.find((r) => r.code === "pay_or_offer").message, "Touches pay or an offer.");
 });
+
+test("a draft that asks questions their attached file may answer is flagged", () => {
+  const state = freshState();
+  const asked = "One other role might be a fit, attached. Let me know if you are interested. [attachment: northwind.pdf]";
+  const flagged = check(state, { text: "Thanks, I'm interested. Is it in New York?", asked, kind: "nudge" });
+  assert.ok(flagged.reasons.some((r) => r.code === "their_file" && /northwind\.pdf/.test(r.message) && r.soft));
+  const fine = check(state, { text: "Thanks, I'm interested.", asked, kind: "nudge" });
+  assert.ok(!fine.reasons.some((r) => r.code === "their_file"));
+});
