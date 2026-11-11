@@ -34,12 +34,12 @@ Needs Claude in Chrome, so runs without it should skip these and say so. Reading
 
 To send an approved message, do these one tool call at a time, because a batch is refused:
 
-1. Open the agent's site in a tab, and check the signed-in name matches `profile.name`. If it wants a login, run `connect "<agent>" signin` and stop.
+1. Keep Chrome tidy: `tabs_context_mcp` first, and `navigate` a tab that's already open. Only open one when there's none, never a second, and don't reopen a page you've finished with unless something new needs it. Open the agent's site there, and check the signed-in name matches `profile.name`. If it wants a login, run `connect "<agent>" signin` and stop.
 2. `read_page` with filter `interactive`, and find its chat box.
 3. `computer` with `left_click` and that box's `ref`.
 4. `computer` with `type` and the message, exactly as written.
 5. `computer` with `key` and `Return`. If Enter doesn't send it here, `read_page` again and `left_click` the Send button's `ref`.
-6. Read the page to confirm the message appears in the chat. Then run `sent <id>`, and close the tab.
+6. Read the page to confirm the message appears in the chat. Then run `sent <id>`. Leave the one tab for the next message, and close it only when you're done with Chrome.
 
 If there's no chat box, or a step is refused, stop and say so. Don't try another way. A refusal in a run is final.
 

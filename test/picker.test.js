@@ -1762,3 +1762,12 @@ test("when Chrome can't send a LinkedIn reply, the LinkedIn tool is the backup, 
   await sendOutbox(id, { runner: clicked });
   assert.ok(plans.length && plans.every((p) => p.chrome), "only Chrome looks, the LinkedIn tool never sends again");
 }));
+
+test("a run opens one Chrome tab and reuses it, never a second", () => {
+  const browser = { run: "r", tabs: {}, refs: {}, typed: {}, urls: {} };
+  assert.equal(gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser }).decision, "allow");
+  learnFromTool({ tool_name: CHROME("tabs_create_mcp"), tool_input: {}, tool_response: [{ type: "text", text: tabLine(12, "New Tab", "chrome://newtab/") }] }, browser);
+  const again = gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser });
+  assert.equal(again.decision, "deny");
+  assert.match(again.reason, /tab 12/);
+});
