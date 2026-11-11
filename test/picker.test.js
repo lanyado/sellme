@@ -1729,3 +1729,36 @@ test("an older draft's header comes out of its text: who and when go by the name
   assert.match(lines.find((l) => l.includes("Dana Ford")), /Dana Ford, Acme  Fri, Nov 6, 12:16 PM · \d+d ago/);
   assert.ok(lines.some((l) => /^  │ Hello there │$/.test(l)));
 });
+
+test("when Chrome can't send a LinkedIn reply, the LinkedIn tool is the backup, but never after a Send click", () => withSandbox(async () => {
+  const { sendOutbox } = await import("../lib/agent.js");
+  const setup = () => withState((s) => {
+    Object.assign(s, { setup_done: true });
+    core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
+    const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk today?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
+    if (q.status !== "approved") core.approve(s, q.id);
+  });
+  setup();
+  const id = load().queue[0].id;
+  const plans = [];
+  const click = (run) => withState((s) => {
+    const q = s.queue.find((x) => x.id === id);
+    q.send_cleared = { run, ts: new Date().toISOString() };
+    q.send_confirmed = { run, ts: new Date().toISOString() };
+  });
+  const chromeDown = async (_, { run, fast }) => {
+    plans.push(fast);
+    if (!fast.chrome) { click(run); return { ok: true, output: "sent" }; }
+    return { ok: false, output: "Claude in Chrome isn't connected", failed: "not connected" };
+  };
+  const out = await sendOutbox(id, { runner: chromeDown });
+  assert.equal(out.sent, true);
+  assert.deepEqual(plans.map((p) => Boolean(p.chrome)), [true, false]);
+  assert.equal(plans[1].tool, "mcp__linkedin__send_message");
+  // A Send click that didn't read back may have posted: no second send.
+  withState((s) => { const q = s.queue.find((x) => x.id === id); q.status = "approved"; q.sent_at = null; });
+  plans.length = 0;
+  const clicked = async (_, { run, fast }) => { plans.push(fast); click(run); return { ok: true, output: "failed: not sure" }; };
+  await sendOutbox(id, { runner: clicked });
+  assert.ok(plans.length && plans.every((p) => p.chrome), "only Chrome looks, the LinkedIn tool never sends again");
+}));
