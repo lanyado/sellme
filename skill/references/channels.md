@@ -26,7 +26,7 @@ If the outbox item has `attach`, put that object, unchanged, as the only item in
 
 ## LinkedIn (people with a LinkedIn profile)
 
-A reply goes in its conversation. The LinkedIn tool's `send_message` only starts a new chat, so for an item with `reply`, open `https://www.linkedin.com/messaging/thread/<thread>/` in Chrome and type it there, as for a browser agent. With no `thread`, get it from the LinkedIn tool's `get_conversation` and record it with `{{SELLME}} thread <id> <thread_id>` first. Only a first message uses `send_message`: `linkedin_username` is the exact `to`, `message` the approved text, `confirm_send` true. Nothing else. LinkedIn and iMessage can't carry files here, so a resume goes as the link already in the approved text. If LinkedIn says the person can't be messaged yet, leave it in the outbox and tell the user why.
+Use the LinkedIn tool first, since it's cleaner for the user than a browser: `send_message` with `linkedin_username` the exact `to`, `message` the approved text, `confirm_send` true. Only when the tool isn't connected or fails before sending, type it in Chrome instead: for an item with `reply`, open `https://www.linkedin.com/messaging/thread/<thread>/` and type it there, as for a browser agent (with no `thread`, get it from `get_conversation` and record it with `{{SELLME}} thread <id> <thread_id>` first). Never retry in Chrome once the tool may have sent it. LinkedIn and iMessage can't carry files here, so a resume goes as the link already in the approved text. If LinkedIn says the person can't be messaged yet, leave it in the outbox and tell the user why.
 
 ## Browser (Jack & Jill and most of the catalog)
 
