@@ -78,7 +78,7 @@ test("recall syncs and searches in one run, keeps what bears on it, and drops th
   assert.equal(seen.dir, "/memsvc");
   assert.deepEqual(seen.args, ["batch"]);
   assert.equal(seen.steps[0].do, "sync");
-  assert.deepEqual(seen.steps[1].sources, ["sent", "asked", "notes"]);
+  assert.deepEqual(seen.steps[1].sources, ["sent", "asked", "notes", "chats"]);
   assert.equal(seen.steps[1].for, "Sam");
   assert.deepEqual(found.map((r) => r.id), ["q1"]);
   assert.equal(found[0].when, "2026-11-06");
