@@ -590,3 +590,13 @@ test("what the user wrote themselves clears a nudge SELLME drafted before it", (
   core.addYours(s, { agent: "Dana Lee", text: "Hi Dana, any update?", at: new Date(Date.now() + 1000).toISOString() });
   assert.equal(n.status, "skipped");
 });
+
+test("a run's own aside in asked moves to SELLME's notes, so no check reads it as theirs", () => {
+  const s = state();
+  const q = core.addDraft(s, { agent: "Standout", asked: "Full-time or contract? (Standout texted this; an earlier run logged it at 11:14 AM ET, unanswered)", text: "Open to both full-time and contract.", sources: ["profile.roles"] });
+  assert.equal(q.asked, "Full-time or contract?");
+  assert.match(q.context, /earlier run logged it/);
+  assert.ok(!q.check.reasons.some((r) => r.code === "scheduling"));
+  const kept = core.addBlock(s, { agent: "Standout", asked: "Remote (US only)?", reason: "No answer on file." });
+  assert.equal(kept.asked, "Remote (US only)?");
+});
