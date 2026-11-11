@@ -1211,6 +1211,11 @@ test("a fast send is one exact tool call, and only a send the gate cleared and t
   assert.equal(fastPlan({ channel: "imessage", to: "+15550111", text: "Hi." }).tool, "mcp__messages__tool_send_message");
   assert.deepEqual(fastPlan({ channel: "linkedin", to: "linkedin.com/in/x", text: "Hi." }).input, { linkedin_username: "linkedin.com/in/x", message: "Hi.", confirm_send: true });
   assert.deepEqual(fastPlan({ channel: "email", person: true, to: "a@b.co", subject: "Maya", text: "Hi.", attach: { filename: "cv.pdf", content: "SELLME_RESUME" } }).input.attachments, [{ filename: "cv.pdf", content: "SELLME_RESUME" }]);
+  for (const o of [{ thread: "m1" }, { reply: true }, {}]) {
+    const plan = fastPlan({ channel: "email", person: true, to: "a@b.co", subject: "Maya", text: "Hi.", attach: { filename: "cv.pdf", content: "SELLME_RESUME" }, ...o });
+    assert.match(plan.prompt, /SELLME swaps in the user's real resume/, "a run must not refuse the placeholder as a broken file");
+  }
+  assert.doesNotMatch(fastPlan({ channel: "email", person: true, to: "a@b.co", subject: "Maya", text: "Hi.", thread: "m1" }).prompt, /swaps in/);
   assert.equal(fastPlan({ channel: "email", to: "bot@boardy.ai", text: "Hi." }), null, "a bot's email thread goes through the skill");
   assert.equal(fastPlan({ channel: "browser", text: "Hi." }), null);
   const s = freshState();
