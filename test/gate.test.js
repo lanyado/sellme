@@ -553,3 +553,13 @@ test("a run may wait a moment for a fast agent's answer", async () => {
   const { gate } = await import("../lib/agent.js");
   assert.equal(gate({ tool_name: "Bash", tool_input: { command: "sellme wait 45" } }, state(), { run: "r" }).decision, "allow");
 });
+
+test("an edit replaces the reply the card showed, even when an older suggestion was still attached", () => {
+  const s = state();
+  const q = ok(s);
+  q.suggestion = "See you tomorrow.";
+  core.editDraft(s, q.id, "See you today.");
+  assert.equal(q.suggestion, null);
+  assert.equal(q.text, "See you today.");
+  assert.equal(q.before, "See you tomorrow.");
+});
