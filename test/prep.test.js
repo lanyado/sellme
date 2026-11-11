@@ -103,3 +103,22 @@ test("a conversation opens on the newest lines with the line ready to type, and 
   assert.equal((await run([], "What do they build?")).out, "What do they build?");
   assert.equal((await run([], "quit")).out, "quit");
 });
+
+test("a brief shows headings, bold, underline and lists as styles, never as raw marks", async () => {
+  const { rich, palette } = await import("../lib/render.js");
+  const tag = (t) => (s) => `<${t}>${s}</${t}>`;
+  const c = { ...palette(null), lime: (s) => s, muted: (s) => s, bold: tag("b"), underline: tag("u") };
+  const brief = "WHO AND WHEN\n- **Dana Ford**, Fri at **3:00 PM**\n- Place: 1 Main St\n\n## Likely questions\n1. **Why us?** Because the role is close to my current work and I have shipped the same kind of system twice before.\n- __Don't raise pay first.__";
+  const out = rich(brief, 40, c);
+  assert.equal(out[0], "<u><b>WHO AND WHEN</b></u>");
+  assert.equal(out[1], "• <b>Dana Ford</b>, Fri at <b>3:00 PM</b>");
+  assert.equal(out[2], "• <b>Place</b>: 1 Main St", "an unmarked label is bolded, so older briefs read the same");
+  assert.ok(out.includes("<u><b>LIKELY QUESTIONS</b></u>"));
+  const q = out.findIndex((l) => l.startsWith("1. "));
+  assert.match(out[q], /^1\. <b>Why us\?<\/b> /);
+  assert.match(out[q + 1], /^ {3}\S/, "a wrapped list line hangs under its text");
+  assert.ok(out.every((l) => !/\*\*|__|^#/.test(l)));
+  assert.ok(out.some((l) => l.includes("<u>Don't raise pay first.</u>")));
+  const plain = rich("**Dana** at __noon__", 40, palette(null));
+  assert.deepEqual(plain, ["Dana at noon"], "no color drops the marks");
+});
