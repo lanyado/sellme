@@ -563,3 +563,30 @@ test("an edit replaces the reply the card showed, even when an older suggestion 
   assert.equal(q.text, "See you today.");
   assert.equal(q.before, "See you tomorrow.");
 });
+
+test("no nudge while the user's own last message is unanswered and recent, or after they skipped one", () => {
+  const s = state();
+  core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
+  const hour = 3600_000;
+  // Sam wrote yesterday; the user answered from their own Gmail this morning.
+  s.queue.push({ id: "q90", agent: "Sam Rivera", channel: "self", kind: "reply", status: "skipped", asked: "Can you send availability?", created: new Date(Date.now() - 26 * hour).toISOString() });
+  const mine = core.addYours(s, { agent: "Sam Rivera", text: "Added Thu and Fri on the new link.", at: new Date(Date.now() - 20 * hour).toISOString() });
+  assert.equal(mine.status, "sent_by_you");
+  assert.throws(() => core.addDraft(s, { agent: "Sam Rivera", text: "Just checking my availability came through.", kind: "nudge" }), /hasn't answered the last message/);
+  assert.equal(core.addYours(s, { agent: "Sam Rivera", text: "Added Thu and Fri on the new link.", at: new Date().toISOString() }), mine, "recorded once");
+  // After they write back, a nudge is allowed again; once the user skips it, the next waits.
+  s.queue.push({ id: "q91", agent: "Sam Rivera", channel: "self", kind: "reply", status: "skipped", asked: "Thanks, booking now", created: new Date(Date.now() - 3 * hour).toISOString() });
+  const n = core.addDraft(s, { agent: "Sam Rivera", text: "Any time Thursday works.", kind: "nudge" });
+  core.skip(s, n.id);
+  assert.throws(() => core.addDraft(s, { agent: "Sam Rivera", text: "Thursday still works for me.", kind: "nudge" }), /You skipped a nudge/);
+  // A long time later it's fine.
+  assert.equal(core.nudgeTooSoon(s, "Sam Rivera", Date.now() + 30 * 24 * hour), null);
+});
+
+test("what the user wrote themselves clears a nudge SELLME drafted before it", () => {
+  const s = state();
+  core.addRecruiter(s, "Dana Lee", { handle: "dana@example.com" });
+  const n = core.addDraft(s, { agent: "Dana Lee", text: "Any update on the role?", kind: "nudge" });
+  core.addYours(s, { agent: "Dana Lee", text: "Hi Dana, any update?", at: new Date(Date.now() + 1000).toISOString() });
+  assert.equal(n.status, "skipped");
+});
