@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords } from "../lib/agent.js";
+import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords, stopReply } from "../lib/agent.js";
 import { screenRows, selectionText } from "../lib/picker.js";
 import { sentLine, theirMessage } from "../lib/render.js";
 import { activityRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
@@ -1841,4 +1841,38 @@ test("the LinkedIn sign-in is the LinkedIn tool's own --login, from the user's s
   assert.deepEqual([steps[0].bin, ...steps[0].args], ["/opt/uv", "run", "-m", "linkedin_mcp_server", "--login"]);
   assert.deepEqual(steps[0].env, { A: "1" });
   assert.equal(stepsFor({ name: "LinkedIn", kind: "signin", url: null }, [], { login: () => null })[0].kind, "text");
+});
+
+test("a run closes the tab it opened before it can finish, and opens no second one after", () => {
+  const browser = { run: "r", tabs: {}, refs: {}, typed: {}, urls: {} };
+  learnFromTool({ tool_name: CHROME("tabs_create_mcp"), tool_input: {}, tool_response: [{ type: "text", text: tabLine(31, "New Tab", "chrome://newtab/") }] }, browser);
+  const stop = JSON.parse(stopReply(browser));
+  assert.equal(stop.decision, "block");
+  assert.match(stop.reason, /tabs_close_mcp with tabId 31/);
+  assert.equal(stopReply(browser, { stop_hook_active: true }), "", "it asks once, never loops");
+  learnFromTool({ tool_name: CHROME("tabs_close_mcp"), tool_input: { tabId: 31 }, tool_response: [{ type: "text", text: "closed" }] }, browser);
+  assert.equal(stopReply(browser), "", "closed: it may finish");
+  assert.equal(gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser }).decision, "deny", "one tab per run, even after closing it");
+});
+
+test("only a LinkedIn send opens a LinkedIn conversation, so a check's browser run never adds a LinkedIn tab", () => {
+  const s = freshState();
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/danaford7" });
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
+  if (q.status !== "approved") core.approve(s, q.id);
+  const nav = (linkedin) => gate({ tool_name: CHROME("navigate"), tool_input: { url: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" } }, s, { run: "r", linkedin }).decision;
+  assert.equal(nav(true), "allow");
+  assert.equal(nav(false), "deny");
+});
+
+test("the tab a run's tabs_context_mcp makes counts as its own, in the words Claude in Chrome really uses", () => {
+  const browser = { run: "r", tabs: {}, refs: {}, typed: {}, urls: {} };
+  learnFromTool({ tool_name: CHROME("tabs_context_mcp"), tool_input: { createIfEmpty: true }, tool_response: [{ type: "text", text: '{"availableTabs":[{"tabId":1320382639,"title":"New Tab","url":"chrome://newtab/"}],"tabGroupId":17}\n\nTab Context:\n- Available tabs:\n  • tabId 1320382639: "New Tab" ("chrome://newtab/")' }] }, browser);
+  assert.deepEqual(browser.opened, ["1320382639"]);
+  const second = gate({ tool_name: CHROME("tabs_create_mcp"), tool_input: {} }, freshState(), { run: "r", browser });
+  assert.equal(second.decision, "deny", "it navigates the tab it has");
+  learnFromTool({ tool_name: CHROME("tabs_create_mcp"), tool_input: {}, tool_response: [{ type: "text", text: "Created new tab. Tab ID: 1320382640" }] }, browser);
+  assert.deepEqual(browser.opened, ["1320382639", "1320382640"], "if one slips through, it must be closed too");
+  learnFromTool({ tool_name: CHROME("tabs_close_mcp"), tool_input: { tabId: 1320382639 }, tool_response: [{ type: "text", text: "Closed tab 1320382639." }] }, browser);
+  assert.match(JSON.parse(stopReply(browser)).reason, /1320382640/);
 });
