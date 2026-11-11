@@ -1771,3 +1771,21 @@ test("a run opens one Chrome tab and reuses it, never a second", () => {
   assert.equal(again.decision, "deny");
   assert.match(again.reason, /tab 12/);
 });
+
+test("LinkedIn is read every few hours, not every check, unless something waits on it", async () => {
+  const { checkLanes } = await import("../lib/schedule.js");
+  const s = freshState();
+  const now = Date.parse("2026-11-11T12:00:00Z");
+  const ids = (o = {}) => checkLanes(s, { platform: "linux", now, ...o }).map((l) => l.id);
+  assert.ok(ids().includes("linkedin"), "never read yet");
+  s.lane_runs = { linkedin: new Date(now - 60 * 60_000).toISOString() };
+  assert.ok(!ids().includes("linkedin"), "read an hour ago");
+  s.lane_runs.linkedin = new Date(now - 4 * 60 * 60_000).toISOString();
+  assert.ok(ids().includes("linkedin"), "read four hours ago");
+  s.lane_runs.linkedin = new Date(now - 60 * 60_000).toISOString();
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/dana-ford-test" });
+  assert.ok(ids({ start: "Dana Ford" }).includes("linkedin"), "just connected");
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Talk?", text: "Yes, glad to.", kind: "nudge", thread: "2-AbC123xyz" });
+  if (q.status !== "approved") core.approve(s, q.id);
+  assert.ok(ids().includes("linkedin"), "an approved message is waiting");
+});
