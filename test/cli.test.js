@@ -332,6 +332,7 @@ test("the screen keeps full text when an AI tool reads it, and records runs", ()
   shim("note", "--agent", "Fonzi", "--text", long);
   assert.ok(shim("brief", "--peek").stdout.includes(long));
   assert.equal(JSON.parse(shim("brief", "--json").stdout).last_run, null);
+  assert.match(JSON.parse(shim("brief", "--json").stdout).now, /\d{4} \d{2}:\d{2}:\d{2} GMT/, "a run reads the time here, since it can't run date");
   shim("ran");
   assert.ok(JSON.parse(shim("brief", "--json").stdout).last_run);
   assert.match(shim("brief").stdout, /checked agents/);

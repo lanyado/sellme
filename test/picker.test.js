@@ -742,11 +742,15 @@ test("a check runs one lane per channel at once, each with only its own contacts
   core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550002222" });
   core.addRecruiter(s, "Lee Park", { handle: "lee@talent.example" });
   core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
-  const lanes = checkLanes(s, { start: "Jack & Jill", platform: "darwin" });
+  const opening = checkLanes(s, { start: "Jack & Jill", platform: "darwin" });
+  assert.deepEqual(opening.map((l) => l.id), ["websites"], "a just-connected agent is one conversation, not a whole check");
+  assert.match(opening[0].prompt, /Your contacts: Jack & Jill\./);
+  assert.match(opening[0].prompt, /Jack & Jill was just connected: open that conversation/);
+  assert.match(opening[0].prompt, /don't run `sellme ran`/);
+  const lanes = checkLanes(s, { platform: "darwin" });
   assert.deepEqual(lanes.map((l) => l.id), ["websites", "email", "texts", "linkedin", "apps"]);
   const lane = Object.fromEntries(lanes.map((l) => [l.id, l]));
   assert.match(lane.websites.prompt, /Your contacts: Jack & Jill\./);
-  assert.match(lane.websites.prompt, /Jack & Jill was just connected: open that conversation first/);
   assert.equal(lane.websites.chrome, true);
   assert.equal(lane.email.chrome, false, "only the website lane takes Chrome");
   assert.match(lane.email.prompt, /Your contacts: Lee Park\./);
@@ -1571,6 +1575,14 @@ test("after a message to an agent that answers fast, a short run stays in that o
     assert.deepEqual(result, { followed: "Jack & Jill", ok: true });
     assert.equal(prompts.length, 1);
     assert.ok(!load().last_run, "a follow-up isn't the hourly check");
+    // A just-connected agent with no chat: one run for it, then it's no longer "just connected", or every open repeats it.
+    withState((st) => { st.agents.find((a) => a.name === "Fonzi").intro = true; });
+    prompts.length = 0;
+    const opened = await scheduledRun({ platform: "linux", start: "Fonzi", runner: async (p) => (prompts.push(p), { ok: true, output: "Fonzi has no chat." }) });
+    assert.deepEqual(opened, { opened: "Fonzi", ok: true });
+    assert.equal(prompts.length, 1, "one lane, not a whole check");
+    assert.ok(!load().agents.find((a) => a.name === "Fonzi").intro);
+    assert.ok(!load().last_run);
   });
   assert.match(liveLine(0, Date.now(), ["Waiting for their answer"], palette(false), Date.now(), "Jack & Jill"), /Talking with Jack & Jill · Waiting for their answer/);
 });
@@ -1904,3 +1916,14 @@ test("alerts read as decisions: grouped by what happened, with who and when, and
   assert.equal(s.alerts.length, 4);
   assert.equal(core.addAlert(s, "Dex", "Dex offered $987K. Don't reply until you decide.", "Offer from Dex").title, "Offer from Dex");
 });
+
+test("a run can read its own saved tool output and close LinkedIn's session, and nothing more", () => withSandbox(async () => {
+  const { home } = await import("../lib/store.js");
+  const projects = path.join(process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"), "projects");
+  const mine = path.join(projects, home().replace(/[^A-Za-z0-9]/g, "-"), "abc", "tool-results", "b1.txt");
+  const read = (file_path) => gate({ tool_name: "Read", tool_input: { file_path } }, load(), { run: "r1" }).decision;
+  assert.equal(read(mine), "allow", "a big brief is saved there, and the run has to read the rest");
+  assert.equal(read(path.join(projects, "-Users-someone-else", "abc", "tool-results", "b1.txt")), "deny");
+  assert.equal(read(path.join(projects, home().replace(/[^A-Za-z0-9]/g, "-"), "abc.jsonl")), "deny", "only tool output, not transcripts");
+  assert.equal(gate({ tool_name: "mcp__linkedin__close_session", tool_input: {} }, load(), { run: "r1" }).decision, "allow");
+}));
