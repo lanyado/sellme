@@ -473,13 +473,16 @@ test("the pipeline is two lists: the next round by its time, then everything els
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
   assert.equal(rows[1].detail, "Interviewing");
   assert.equal(rows[4].call, null, "a call that's over isn't next");
-  assert.equal(rows[4].detail, "Interview 45h ago · Interviewing", "a past call is the last thing that happened");
-  assert.equal(rows[5].detail, "Nothing yet · Applied");
+  assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "45h", "Interview"], "a past call is the last thing that happened");
+  assert.deepEqual([rows[5].ago, rows[5].what], ["", ""]);
   core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
   s.queue.push({ id: "q90", agent: "Sam Rivera", channel: "self", to: "sam@example.com", kind: "reply", status: "pending", asked: "Still keen?", company: "Old Inc", created: "2026-11-03T09:00:00Z" });
   const again = pipelineRows(s, today);
   assert.deepEqual(again.slice(4).map((r) => r.text), ["Old Inc", "Done Inc", "Applied Inc"], "latest interaction first, nothing yet last");
-  assert.match(again[4].detail, /^Email from Sam Rivera 3h ago · Talking/);
+  assert.deepEqual([again[4].ago, again[4].what], ["3h", "Sam Rivera · email"]);
+  const line = pipelineLine(again[4], " ", c, 100);
+  assert.match(line, /^  Old Inc +Talking +3h  Sam Rivera · email$/);
+  assert.ok(line.length <= 100);
 });
 
 test("dates people actually type become the next time that date comes round", () => {
