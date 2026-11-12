@@ -1668,13 +1668,35 @@ test("talking a draft over: SELLME knows the draft, the check and the talk so fa
   assert.match(prompt, /The check says: .*pay/);
   assert.match(prompt, /User: why is this flagged\?/);
   assert.doesNotMatch(prompt, /987K/, "the floor never reaches the AI");
-  assert.deepEqual(parseChat('{"say": "It mentions pay.", "text": null}', s, q), { say: "It mentions pay.", text: null, sources: [], remember: [] });
+  assert.deepEqual(parseChat('{"say": "It mentions pay.", "text": null}', s, q), { say: "It mentions pay.", text: null, sources: [], remember: [], others: [] });
   const changed = parseChat('{"say": "Shorter now.", "text": "Yes, glad to talk.", "sources": ["profile.where", "made-up"]}', s, q);
   assert.equal(changed.text, "Yes, glad to talk.");
   assert.ok(!changed.sources.includes("made-up"));
   assert.match(parseChat("not json", s, q).refused, /form I could read/);
   const turn = await chatTurn(s, q, history, { tool: { id: "claude", name: "Claude Code", args: [] }, run: async () => '{"say": "Because it talks pay."}' });
   assert.equal(turn.say, "Because it talks pay.");
+});
+
+test("talking one draft over can draft a message to another contact, which lands on the list for its own yes", async () => {
+  const { chatPrompt, parseChat } = await import("../lib/rewrite.js");
+  const s = freshState();
+  s.setup_done = true;
+  s.profile = { ...s.profile, name: "Maya Test" };
+  core.addAgent(s, "Standout", { channel: "imessage", handle: "+15550002222" });
+  core.addRecruiter(s, "Dana Ford", { handle: "dana@talent.example", company: "Northwind Staffing" });
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Want me to submit you to Acme?", text: "Yes, please go ahead.", sources: ["user"] });
+  const prompt = chatPrompt(s, q, [{ who: "you", text: "tell Standout not to submit me to Acme" }]);
+  assert.match(prompt, /- Standout: an agent, as Maya Test's AI agent/);
+  assert.doesNotMatch(prompt, /- Dana Ford \(/, "the draft's own contact isn't an other");
+  const out = parseChat(JSON.stringify({ say: "It's on your list.", text: null, others: [{ to: "Standout", text: "Please don't submit Maya to Acme." }, { to: "Nobody", text: "Hi." }, { to: "Dana Ford", text: "Hi." }] }), s, q);
+  assert.deepEqual(out.others, [{ to: "Standout", text: "Please don't submit Maya to Acme.", sources: [] }], "only the user's other contacts");
+  // Standout was written to a minute ago: SELLME's own nudge would wait, but the user asked for this one.
+  s.queue.push({ id: "q90", agent: "Standout", status: "sent", sent_at: new Date().toISOString(), text: "Any new matches?" });
+  assert.throws(() => core.addDraft(s, { agent: "Standout", text: "Please don't submit Maya to Acme.", kind: "nudge" }));
+  const made = core.addDraft(s, { agent: "Standout", text: "Please don't submit Maya to Acme.", kind: "nudge", byUser: true, context: "You asked for this while discussing the Dana Ford draft." });
+  assert.ok(["pending", "approved"].includes(made.status) || made.status === "blocked");
+  assert.notEqual(made.status, "sent", "nothing goes out without the user's yes");
+  assert.ok(core.openItems(s).includes(made) || made.status === "approved");
 });
 
 test("dragging copies what's on screen, without the bar beside a draft or the padding after a line", () => {
