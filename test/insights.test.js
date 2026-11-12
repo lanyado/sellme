@@ -171,7 +171,7 @@ test("a card shows what changed only when asked, and offers to copy the draft", 
   assert.match(card(q, plain, "", 80, { diff: true }), /\+1 word/);
   assert.doesNotMatch(card(q, plain, "", 80), /\+\{/, "off by default, so an approved card reads clean");
   assert.equal(draftActions(q).some((a) => /what changed/.test(a.label)), false, "no key to hide it");
-  assert.deepEqual(draftActions(q).find((a) => a.id === "copy"), { key: "d", id: "copy", label: "Copy draft" });
+  assert.deepEqual(draftActions(q).find((a) => a.id === "copy"), { key: "c", id: "copy", label: "Copy draft" });
   q.text = "Nothing alike remains between these sentences now.";
   const rewritten = card(q, plain, "", 80, { diff: true });
   assert.doesNotMatch(rewritten, /Before/, "a full rewrite is still shown in red and green, never as before and after");
