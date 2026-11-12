@@ -1677,6 +1677,20 @@ test("talking a draft over: SELLME knows the draft, the check and the talk so fa
   assert.equal(turn.say, "Because it talks pay.");
 });
 
+test("a message the user attaches the resume to themselves is sent as written, not refused for the missing file", async () => {
+  const { linkedinChromePlan, fastPlan } = await import("../lib/agent.js");
+  const s = freshState();
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/ben-ford-test" });
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "Send your resume?", text: "Sure. Here's my resume.", sources: ["user"], thread: "2-AbC123xyz" });
+  q.attach = "manual";
+  if (q.status !== "approved") core.approve(s, q.id, { confirmSensitive: true });
+  const o = core.outbox(s).find((x) => x.id === q.id);
+  assert.equal(o.attach_yourself, true);
+  assert.match(linkedinChromePlan(o).prompt, /attaches it themselves right after it sends/);
+  assert.match(fastPlan({ channel: "imessage", to: "+15550111", text: "Here's my resume.", attach_yourself: true }).prompt, /don't stop over the missing file/);
+  assert.doesNotMatch(linkedinChromePlan({ ...o, attach_yourself: undefined }).prompt, /attaches it themselves/);
+});
+
 test("talking one draft over can draft a message to another contact, which lands on the list for its own yes", async () => {
   const { chatPrompt, parseChat } = await import("../lib/rewrite.js");
   const s = freshState();
