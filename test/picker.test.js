@@ -469,10 +469,17 @@ test("the pipeline is two lists: the next round by its time, then everything els
   core.addRole(s, { company: "Nope Inc", stage: "rejected" });
   core.addRole(s, { company: "Pass Inc", stage: "passed" });
   const rows = pipelineRows(s, today);
-  assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (3)", "Applied Inc", "Done Inc", "Old Inc"]);
+  assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (3)", "Done Inc", "Applied Inc", "Old Inc"]);
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
   assert.equal(rows[1].detail, "Interviewing");
-  assert.equal(rows[5].call, null, "a call that's over isn't next");
+  assert.equal(rows[4].call, null, "a call that's over isn't next");
+  assert.equal(rows[4].detail, "Interview 45h ago · Interviewing", "a past call is the last thing that happened");
+  assert.equal(rows[5].detail, "Nothing yet · Applied");
+  core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
+  s.queue.push({ id: "q90", agent: "Sam Rivera", channel: "self", to: "sam@example.com", kind: "reply", status: "pending", asked: "Still keen?", company: "Old Inc", created: "2026-11-03T09:00:00Z" });
+  const again = pipelineRows(s, today);
+  assert.deepEqual(again.slice(4).map((r) => r.text), ["Old Inc", "Done Inc", "Applied Inc"], "latest interaction first, nothing yet last");
+  assert.match(again[4].detail, /^Email from Sam Rivera 3h ago · Talking/);
 });
 
 test("dates people actually type become the next time that date comes round", () => {
