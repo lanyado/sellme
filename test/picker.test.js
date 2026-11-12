@@ -1263,6 +1263,22 @@ test("a draft row is a short preview that never wraps, even with a tag", () => {
   }
 });
 
+test("a LinkedIn reply never goes to a Gmail id: it uses the contact's real conversation, or finds it", async () => {
+  const { linkedinChromePlan } = await import("../lib/agent.js");
+  const s = freshState();
+  core.addRecruiter(s, "Dana Ford", { handle: "linkedin.com/in/dana-ford-test" });
+  const old = core.addDraft(s, { agent: "Dana Ford", asked: "Free Thu?", text: "Yes, Thu works.", kind: "nudge", thread: "2-AbC123xyz" });
+  Object.assign(old, { status: "sent", sent_at: new Date().toISOString() });
+  const q = core.addDraft(s, { agent: "Dana Ford", asked: "And Fri?", text: "Fri works too.", kind: "nudge", thread: "18c0ffee12345678", byUser: true });
+  core.approve(s, q.id);
+  assert.equal(core.outbox(s)[0].thread, "2-AbC123xyz", "the contact's last LinkedIn conversation");
+  assert.match(linkedinChromePlan(core.outbox(s)[0]).prompt, /messaging\/thread\/2-AbC123xyz/);
+  assert.match(linkedinChromePlan(core.outbox(s)[0]).prompt, /no longer with Dana Ford/, "a conversation LinkedIn switched away from is caught before Send");
+  s.queue = s.queue.filter((x) => x !== old);
+  assert.equal(core.outbox(s)[0].thread, undefined, "none on record: the send looks it up");
+  assert.equal(core.setThread(s, q.id, "2-Real456").thread, "2-Real456", "the real id replaces the Gmail one");
+});
+
 test("a LinkedIn reply goes into its own conversation in Chrome, never a new chat, and only there", async () => {
   const { linkedinChromePlan, fastPlan: toolPlan } = await import("../lib/agent.js");
   const fastPlan = linkedinChromePlan;
@@ -1295,7 +1311,8 @@ test("a LinkedIn reply goes into its own conversation in Chrome, never a new cha
   assert.equal(act({ action: "left_click", ref: "ref_2" }).cleared, q.id);
   assert.match(plan.prompt, /left_click the Send button/);
   assert.match(plan.prompt, /Never press Return/);
-  const noThread = core.addDraft(s, { agent: "Dana Ford", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
+  core.addRecruiter(s, "Sam Rivera", { handle: "linkedin.com/in/samrivera42" }); // No conversation on record yet.
+  const noThread = core.addDraft(s, { agent: "Sam Rivera", asked: "Rate?", text: "Happy to discuss.", kind: "nudge" });
   core.approve(s, noThread.id);
   const lookup = fastPlan(core.outbox(s).find((x) => x.id === noThread.id));
   assert.match(lookup.prompt, /get_conversation[\s\S]*thread q\d+ <that thread_id>/, "a reply with no conversation on record looks it up first");
