@@ -114,7 +114,7 @@ After answering, go down `push` in `{{SELLME}} brief --json --peek`. It lists ev
 | Contact | Push |
 |---|---|
 | `just_connected: true` | Do this one first. Open the conversation: `draft --kind nudge` saying you're the user's AI agent, the roles they want and where (cite `profile.roles` and `profile.where`), and asking what matches they have. On a site, read its chat first and answer anything it already asked instead. |
-| A call in `calls_to_follow_up` | `draft --kind nudge`: thanks, one line on what was discussed if you know it, and the next step |
+| An interview or recruiter call in the last two days: in `calls_to_follow_up`, or found in their call notes (Wispr Flow) or calendar | `draft --kind thanks` to the person who ran it (add them with `{{SELLME}} add` if they're new, using the address from the invite or email), in the user's own voice. Read the call first (`search_meetings`, then `get_meeting`). Say how excited the user is about the role and the team, and how much they're looking forward to the next steps. Add one or two specifics from the call: something the interviewer said or asked, what the user said about their fit, and anything promised next (a take-home, an intro, a date). Use only what's in the call, and nothing under `never_mention`. A thank-you doesn't wait for their answer to an earlier message. |
 | A recruiter agent, `nudge_due: true` or never written to | `draft --kind nudge` asking for the next step on its live role, or for new matches for the user's roles and location |
 | A person on a live role, `nudge_due: true` | `draft --kind nudge` asking for an update and offering times |
 | Matches or intros offered and not answered | `draft` a yes to every one that fits (see above) |

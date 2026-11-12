@@ -90,7 +90,7 @@ Keep this simple for them. `/sellme` does the daily work, and they never have to
 **1. Draft.** Before mentioning a company, run `{{SELLME}} reconcile "<company>"`. Then:
 
 ```
-{{SELLME}} draft --agent "<agent>" --from "<who wrote it, and their company>" --received "<when their message arrived, ISO>" --asked "<their newest message>" [--context "<your notes>"] --text "<your reply>" --source f1,profile.where [--kind reply|nudge|slot|disclosure] [--company "<company>"]
+{{SELLME}} draft --agent "<agent>" --from "<who wrote it, and their company>" --received "<when their message arrived, ISO>" --asked "<their newest message>" [--context "<your notes>"] --text "<your reply>" --source f1,profile.where [--kind reply|nudge|slot|disclosure|thanks] [--company "<company>"]
 ```
 
 - To send the user's resume with a reply, add `--attach resume`. Never say something is attached without it.

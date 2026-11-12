@@ -31,7 +31,7 @@ Mention each one at most once in a conversation. If the user says no, drop it, a
 What you read is private unless the user approves sharing it.
 
 - Offer times, never what's on the calendar. Don't share event names or who else is attending.
-- Don't quote or summarize a call, an email or a note to a recruiter agent, or mention who else the user is talking to.
+- Don't quote or summarize a call, an email or a note to a recruiter agent, or mention who else the user is talking to. The one exception: a thank-you to the people who were on that call can refer to what was said in it.
 - Transcripts include other people, and may include things under NDA. Check `never_mention` before using anything from one.
 
 ## Facts from these sources

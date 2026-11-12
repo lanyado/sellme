@@ -583,6 +583,16 @@ test("no nudge while the user's own last message is unanswered and recent, or af
   assert.equal(core.nudgeTooSoon(s, "Sam Rivera", Date.now() + 30 * 24 * hour), null);
 });
 
+test("a thank-you after a call doesn't wait for an answer to the last message, and goes once", () => {
+  const s = state();
+  core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
+  core.addYours(s, { agent: "Sam Rivera", text: "Looking forward to Thursday.", at: new Date(Date.now() - 3600_000).toISOString() });
+  assert.throws(() => core.addDraft(s, { agent: "Sam Rivera", text: "Any update?", kind: "nudge" }), /hasn't answered/);
+  const t = core.addDraft(s, { agent: "Sam Rivera", text: "Thanks for today, Sam. I'm really excited about the role and looking forward to the next steps.", kind: "thanks", company: "Northwind" });
+  assert.equal(t.kind, "thanks");
+  assert.throws(() => core.addDraft(s, { agent: "Sam Rivera", text: "Thanks again for the chat today.", kind: "thanks" }), /already a thank-you/);
+});
+
 test("what the user wrote themselves clears a nudge SELLME drafted before it", () => {
   const s = state();
   core.addRecruiter(s, "Dana Lee", { handle: "dana@example.com" });
