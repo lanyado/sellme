@@ -76,6 +76,8 @@ test("what's on record answers at once, and a real look-up happens only when not
   assert.equal(needsLookup(s, "what is the status with HP?"), true, "nothing on record");
   assert.equal(needsLookup(s, "look deeper at Northwind"), true);
   assert.equal(needsLookup(s, "did Northwind email me?"), true);
+  assert.equal(needsLookup(s, "how does autopilot work?"), false, "a question about SELLME itself needs no search");
+  assert.match(talkPrompt(s, [{ who: "you", text: "what does check: another agent mean?" }]), /only you know.*question only they can answer[\s\S]*Their settings now: checks/);
   assert.match(talkPrompt(s, [{ who: "you", text: "status with Northwind?" }]), /say "look deeper"/);
   assert.doesNotMatch(talkPrompt(s, [{ who: "you", text: "status with Northwind?" }], { research: true }), /say "look deeper"/);
   const looked = talkPrompt(s, [{ who: "you", text: "status with HP?" }], { research: true });
