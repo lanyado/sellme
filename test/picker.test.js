@@ -72,7 +72,7 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "copy", "talk", "skip", "back"], "no resume option when nobody's talking about one");
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "talk", "skip", "back"]);
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "copy", "talk", "skip", "back"]);
-  assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
+  assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Everything else (1)", "Acme"]);
   assert.equal(activityRows(s)[1].headline, "An offer came in");
   assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
   const hired = { ...freshState(), hired: true, paused: true };
@@ -457,20 +457,22 @@ test("a short name isn't mistaken for a catalog service", () => {
 });
 
 // ---------------------------------------------------------------- the pipeline
-test("rejected and passed get their own sections, and talking shows its next call, soonest first", () => {
+test("the pipeline is two lists: the next round by its time, then everything else still open, latest first", () => {
   const s = state();
   s.roles = [];
   const today = new Date("2026-11-03T12:00:00Z");
   core.addRole(s, { company: "Later Inc", stage: "talking", nextCall: "2026-11-10T15:00:00Z" });
-  core.addRole(s, { company: "Soon Inc", stage: "talking", nextCall: "2026-11-05T15:00:00Z" });
-  core.addRole(s, { company: "Done Inc", stage: "talking", nextCall: "2026-11-01T15:00:00Z" });
+  core.addRole(s, { company: "Soon Inc", stage: "interview", nextCall: "2026-11-05T15:00:00Z" });
+  Object.assign(core.addRole(s, { company: "Done Inc", stage: "interview", nextCall: "2026-11-01T15:00:00Z" }), { updated: "2026-11-02T10:00:00Z" });
+  Object.assign(core.addRole(s, { company: "Applied Inc", stage: "new" }), { updated: "2026-11-03T10:00:00Z" });
+  Object.assign(core.addRole(s, { company: "Old Inc", stage: "talking" }), { updated: "2026-10-01T10:00:00Z" });
   core.addRole(s, { company: "Nope Inc", stage: "rejected" });
   core.addRole(s, { company: "Pass Inc", stage: "passed" });
   const rows = pipelineRows(s, today);
-  assert.deepEqual(rows.filter((r) => r.heading).map((r) => r.heading), ["Talking (3)", "Rejected (1)", "Passed (1)"]);
-  assert.deepEqual(rows.slice(1, 4).map((r) => r.text), ["Soon Inc", "Later Inc", "Done Inc"]);
+  assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (3)", "Applied Inc", "Done Inc", "Old Inc"]);
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
-  assert.equal(rows[3].call, null, "a call that's over isn't next");
+  assert.equal(rows[1].detail, "Interviewing");
+  assert.equal(rows[5].call, null, "a call that's over isn't next");
 });
 
 test("dates people actually type become the next time that date comes round", () => {
