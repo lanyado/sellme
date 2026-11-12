@@ -162,17 +162,16 @@ test("the diff marks what changed word by word, and keeps an email's lines", () 
   assert.equal(wordDiff("x ".repeat(1000), "y ".repeat(1000)), null, "too long to compare");
 });
 
-test("a card shows what changed only when asked, and offers to hide it", () => {
+test("a card shows what changed only when asked, and offers to copy the draft", () => {
   const s = search();
   const q = addDraft(s, { agent: "Dex", asked: "Team size?", text: "Maya led a team of 6.", sources: [] });
-  assert.equal(draftActions(q).some((a) => a.id === "diff"), false, "nothing to show yet");
   q.before = q.text;
   q.text = "Maya led a strong team of 6.";
   assert.match(card(q, plain, "", 80, { diff: true }), /\+\{strong\}/);
   assert.match(card(q, plain, "", 80, { diff: true }), /\+1 word/);
   assert.doesNotMatch(card(q, plain, "", 80), /\+\{/, "off by default, so an approved card reads clean");
-  assert.equal(draftActions(q, { diff: true }).find((a) => a.id === "diff").label, "Hide what changed");
-  assert.equal(draftActions(q, { diff: false }).find((a) => a.id === "diff").label, "Show what changed");
+  assert.equal(draftActions(q).some((a) => /what changed/.test(a.label)), false, "no key to hide it");
+  assert.deepEqual(draftActions(q).find((a) => a.id === "copy"), { key: "d", id: "copy", label: "Copy draft" });
   q.text = "Nothing alike remains between these sentences now.";
   const rewritten = card(q, plain, "", 80, { diff: true });
   assert.doesNotMatch(rewritten, /Before/, "a full rewrite is still shown in red and green, never as before and after");

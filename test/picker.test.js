@@ -69,9 +69,9 @@ test("the app's tabs show what's going on", () => {
   assert.match(summary(s), /^Getting you hired: 1 interview · 2 drafts need you · 1 to connect · 1 alert · checked /, "the goal leads, with how close it is");
   const drafts = draftRows(s);
   assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["✗", "○"], "newest first");
-  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "talk", "skip", "back"], "no resume option when nobody's talking about one");
+  assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "copy", "talk", "skip", "back"], "no resume option when nobody's talking about one");
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "talk", "skip", "back"]);
-  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "talk", "skip", "back"]);
+  assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "copy", "talk", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Interview (1)", "Acme"]);
   assert.equal(activityRows(s)[1].headline, "An offer came in");
   assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
@@ -240,7 +240,7 @@ test("a question only the user can answer comes with a suggested reply: send it,
   const s = state();
   core.addAgent(s, "Boardy", { channel: "email", handle: "boardy@boardy.ai" });
   const q = core.addBlock(s, { agent: "Boardy", asked: "Lee runs Northwind Talent. Want the intro?", reason: "Accepting an intro is yours.", suggest: "Yes, please. Maya would welcome the intro." });
-  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Discuss with SELLME", "Skip", "Back"]);
+  assert.deepEqual(draftActions(q).map((a) => a.label), ["Sell me!", "Edit it", "Copy draft", "Discuss with SELLME", "Skip", "Back"]);
   assert.equal(draftRows(s).find((r) => r.id === q.id).mark, "?", "a question, not an error");
   const shown = card(q, c);
   assert.match(shown, /Suggested\n/);
