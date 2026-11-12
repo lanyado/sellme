@@ -1767,7 +1767,7 @@ test("the list says what each item needs in words, and how long ago their messag
   const rows = draftRows(s).filter((r) => r.draft);
   assert.deepEqual(rows.map((r) => r.agent), ["Kai Moss", "Lee Park"]);
   assert.deepEqual(rows.map((r) => r.status.label), ["check: pay", "ready to send"]);
-  assert.deepEqual(rows.map((r) => r.text), ["their email · sent 5m ago", "their email · sent 3h ago"]);
+  assert.deepEqual(rows.map((r) => r.text), ["email · sent 5m ago", "email · sent 3h ago"]);
   const line = draftLine(rows[0], " ", c, 80);
   assert.doesNotMatch(line, /happy to talk/i, "no preview of the draft");
 });
