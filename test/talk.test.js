@@ -31,7 +31,7 @@ test("the chat is given what's on record for the name asked about, and only the 
   assert.doesNotMatch(prompt, /987K/);
   assert.match(prompt, /Never list their other processes/);
   assert.match(prompt, /Never guess a status/);
-  assert.match(prompt, /can't send or change anything/);
+  assert.match(prompt, /it goes to Drafts as its own draft[\s\S]*Nothing else is sent or changed from here/);
   assert.doesNotMatch(prompt, /Look it up before you answer/, "the plain tool isn't told to search");
   const looked = talkPrompt(s, [{ who: "you", text: "what is the status with HP?" }], { research: true });
   assert.match(looked, /nothing found under that name/, "no HP on record says so, instead of letting it guess");
@@ -56,8 +56,10 @@ test("names are found whole and short ones too, and filler words match nothing",
 test("an answer comes back with what to remember, and the chat is kept for next time", async () => {
   const { s } = search();
   const out = await talkTurn(s, [], { tool: { id: "claude" }, run: async () => '{"say": "Prep for Northwind.\\\\nThen nudge Dex.", "remember": ["Prefers remote Fridays"]}' });
-  assert.deepEqual(out, { say: "Prep for Northwind.\nThen nudge Dex.", remember: ["Prefers remote Fridays"] });
+  assert.deepEqual(out, { say: "Prep for Northwind.\nThen nudge Dex.", remember: ["Prefers remote Fridays"], drafts: [] });
   assert.match(parseTalk("nope").refused, /form I could read/);
+  const asked = parseTalk('{"say": "Done, it\'s in Drafts.", "drafts": [{"to": "Dex", "text": "Thanks for today. I really enjoyed it.", "kind": "thanks", "company": "Northwind"}, {"to": "Nobody Known", "text": "Hi"}]}', s);
+  assert.deepEqual(asked.drafts, [{ to: "Dex", text: "Thanks for today. I really enjoyed it.", sources: [], kind: "thanks", company: "Northwind" }], "a message the user asked for, to their own contacts only");
   assert.match((await talkTurn(s, [], { tool: null })).failed, /No AI tool/);
   const history = Array.from({ length: 50 }, (_, i) => ({ who: i % 2 ? "sellme" : "you", text: `m${i}` }));
   saveChat(s, [...history, { who: "sellme", text: "Stopped.", note: true }]);
