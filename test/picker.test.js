@@ -66,7 +66,7 @@ test("the app's tabs show what's going on", () => {
   core.addDraft(s, { agent: "Fonzi", asked: "Team?", text: "Led 20 engineers.", sources: ["f1"] });
   core.addRole(s, { company: "Acme", stage: "interview", agent: "Fonzi" });
   core.addAlert(s, "Fonzi", "An offer came in");
-  assert.match(summary(s), /^Getting you hired: 1 interview · 2 drafts need you · 1 to connect · 1 alert · checked /, "the goal leads, with how close it is");
+  assert.match(summary(s), /^Selling you: 1 interview · 2 drafts need you · 1 to connect · 1 alert · checked /, "the goal leads, with how close it is");
   const drafts = draftRows(s);
   assert.deepEqual(drafts.filter((r) => r.draft).map((r) => r.mark), ["✗", "○"], "newest first");
   assert.deepEqual(draftActions(q).map((a) => a.id), ["approve", "edit", "copy", "talk", "skip", "back"], "no resume option when nobody's talking about one");
@@ -74,12 +74,12 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "copy", "talk", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Everything else (1)", "Acme"]);
   assert.equal(alertRows(s)[1].headline, "An offer came in");
-  assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
+  assert.equal(summary(freshState()), "Selling you · nothing needs you · not checked yet");
   const hired = { ...freshState(), hired: true, paused: true };
   assert.equal(summary(hired), "You’re hired. Goal reached · not checked yet");
   const far = freshState();
   far.roles = [{ stage: "offer" }, { stage: "interview" }, { stage: "interview" }, { stage: "talking" }, { stage: "new" }];
-  assert.equal(goalLine(far), "Getting you hired: 1 offer, 2 interviews, 1 talking");
+  assert.equal(goalLine(far), "Selling you: 1 offer, 2 interviews, 1 talking");
 });
 
 test("a long list keeps the cursor in view and says what's hidden", () => {
@@ -1457,7 +1457,7 @@ test("an approved message shows a spinner by the name while it goes, and a faile
   assert.equal(row.sending, true);
   assert.equal(row.mark, "⠙");
   assert.match(row.status.label, /sending 0:04/);
-  assert.equal(row.text, "click to stop");
+  assert.equal(row.text, "Any new roles?", "it shows what's going out");
   const failed = draftRows(s, { failed: new Map([[q.id, "No reply from Chrome"]]) }).find((r) => r.id === q.id);
   assert.equal(failed.mark, "✗");
   assert.match(failed.text, /No reply from Chrome · click to try again/);
@@ -2045,4 +2045,19 @@ test("a call that's going on stays first, with its brief, until it ends", async 
   assert.equal(preppable(role, after), false);
   assert.deepEqual([span(23 * 3600_000), span(24 * 3600_000), span(47 * 3600_000), span(49 * 3600_000)], ["23h", "1d", "1d", "2d"]);
   assert.deepEqual([ago(5 * 3600_000), ago(30 * 3600_000), ago(50 * 3600_000)], ["5h ago", "1d ago", "2d ago"]);
+});
+
+test("an alert whose time is over clears itself, and a check can clear one only saying why", () => {
+  const s = state();
+  const clash = core.addAlert(s, null, "Calendar clash Fri Nov 13: your 3 PM call overlaps the Acme screen.", null, "2026-11-13T21:00:00Z");
+  const offer = core.addAlert(s, null, "Northwind offered $987K.", "Offer from Northwind");
+  assert.equal(core.expireAlerts(s, new Date("2026-11-13T12:00:00Z")), 0, "not over yet");
+  assert.equal(core.expireAlerts(s, new Date("2026-11-14T09:00:00Z")), 1);
+  assert.deepEqual(s.alerts.map((a) => a.id), [offer.id], "an alert with no end stays");
+  assert.match(s.notes.at(-1).text, /Cleared “Calendar clash Fri Nov 13”: its time has passed/);
+  assert.ok(!s.alerts.some((a) => a.id === clash.id));
+  assert.equal(gate({ tool_name: "Bash", tool_input: { command: `sellme dismiss ${offer.id}` } }, s, { run: "r" }).decision, "deny");
+  assert.equal(gate({ tool_name: "Bash", tool_input: { command: `sellme dismiss ${offer.id} --reason "Resolved: Sam withdrew"` } }, s, { run: "r" }).decision, "allow");
+  assert.doesNotMatch(footerLine("Inbox", 200), /r check now/);
+  assert.match(footerLine("Pipeline", 200), /r check now/);
 });
