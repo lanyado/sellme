@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { activityLabel, agentArgs, canSendOn, gate, gateHook, learnFromTool, pointsElsewhere, shellWords, stopReply } from "../lib/agent.js";
 import { screenRows, selectionText } from "../lib/picker.js";
 import { sentLine, theirMessage } from "../lib/render.js";
-import { activityRows, alertLine, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
+import { activityRows, alertLine, alertRows, chatLink, draftLine, goalLine, liveLine, draftActions, draftRows, footerLine, pipelineLine, pipelineRows, roleActions, shouldSync, summary, scrollBy, scrolled, syncScreen, syncSummary, windowed } from "../lib/app.js";
 import { CHROME_PAGE, CONNECTORS_PAGE, findHosts, runStep, stepsFor, verify } from "../lib/connect.js";
 import * as core from "../lib/core.js";
 import { canOpen, openUrl } from "../lib/open.js";
@@ -73,7 +73,7 @@ test("the app's tabs show what's going on", () => {
   assert.deepEqual(draftActions({ status: "blocked" }).map((a) => a.id), ["edit", "talk", "skip", "back"]);
   assert.deepEqual(draftActions({ status: "blocked", asked: "Can you send your CV?", suggestion: "Sure." }).map((a) => a.id), ["send", "edit", "attach", "copy", "talk", "skip", "back"]);
   assert.deepEqual(pipelineRows(s).map((r) => r.heading ?? r.text), ["Everything else (1)", "Acme"]);
-  assert.equal(activityRows(s)[1].headline, "An offer came in");
+  assert.equal(alertRows(s)[1].headline, "An offer came in");
   assert.equal(summary(freshState()), "Getting you hired · nothing needs you · not checked yet");
   const hired = { ...freshState(), hired: true, paused: true };
   assert.equal(summary(hired), "You’re hired. Goal reached · not checked yet");
@@ -920,7 +920,7 @@ test("a role and the footer each stay on one line in a narrow terminal", () => {
     const line = pipelineLine(row, "❯", c, width);
     assert.ok(line.length <= width, `${width}: ${line}`);
     assert.match(line, /Next call/, "the call time is what matters most");
-    for (const tab of ["Drafts", "Agents", "Pipeline", "Schedule", "Activity"]) assert.ok(footerLine(tab, width).length < width, `${tab} at ${width}`);
+    for (const tab of ["Inbox", "Agents", "Pipeline", "Schedule"]) assert.ok(footerLine(tab, width).length < width, `${tab} at ${width}`);
   }
   assert.match(footerLine("Pipeline", 80), /n nudge · f follow up/);
   assert.match(footerLine("Pipeline", 140), /←→ tabs/);
@@ -1169,7 +1169,7 @@ test("the logo fits the terminal, and clicks land on the line that was drawn", a
   assert.equal(logo(c, 30, 40), "SELLME");
   assert.deepEqual(placeLines("short\n" + "x".repeat(150) + "\nnext", 100), [0, 1, 3]);
   const spots = tabSpots();
-  assert.deepEqual(spots.slice(0, 2).map((t) => [t.tab, t.from, t.to]), [["Drafts", 0, 9], ["Chat", 9, 16]]);
+  assert.deepEqual(spots.slice(0, 2).map((t) => [t.tab, t.from, t.to]), [["Inbox", 0, 8], ["Pipeline", 8, 19]]);
 });
 
 test("a resume goes as the file by email, filled in by the gate, and as a link anywhere else", () => {
@@ -1787,7 +1787,7 @@ test("a selection reads the plain screen, with color and links gone and a long l
 });
 
 test("no screen offers keys that are gone: v to select and q to quit", () => {
-  for (const tab of ["Drafts", "Agents", "Pipeline", "Timeline", "Schedule", "Activity"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
+  for (const tab of ["Inbox", "Agents", "Pipeline", "Timeline", "Schedule"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
   assert.match(footerLine("Pipeline", 140), /d delete/);
 });
 
@@ -1997,11 +1997,11 @@ test("alerts read as decisions: grouped by what happened, with who and when, and
     { id: "a3", agent: "Dex", text: "Calendar clash Fri Nov 13: your 3 PM call overlaps the Acme screen.", ts: new Date(now - 30 * 60_000).toISOString() },
     { id: "a4", agent: "Dex", text: "q109 (nudge to Dex) was auto-approved by the helper and sent by the app.", ts: new Date(now - 60_000).toISOString() },
   );
-  const rows = activityRows(s, now);
+  const rows = alertRows(s, now);
   assert.equal(rows[0].heading, "Needs your eyes · 3");
   const groups = rows.filter((r) => r.alertGroup);
   assert.deepEqual(groups.map((r) => [r.headline, r.count, r.who]), [["Calendar clash Fri Nov 13", 1, "Dex"], ["Possible double submission", 2, "Dex, Sam Rivera"]]);
-  assert.ok(rows.some((r) => !r.alertGroup && /q109/.test(r.text ?? "")), "bookkeeping reads as history");
+  assert.ok(activityRows(s).some((r) => r.history && /q109/.test(r.text ?? "")), "bookkeeping reads as history");
   assert.equal(core.alertBody(s.alerts[1]), "Sam named Acme too.");
   const line = alertLine(groups[1], " ", palette("truecolor"), 100).replace(/\x1b\[[0-9;]*m/g, "");
   assert.match(line, /! Possible double submission \(2\)\s+Dex, Sam Rivera · 2h ago$/);

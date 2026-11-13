@@ -88,11 +88,11 @@ Sellme always admits it's an AI when asked. It never claims to be you, and never
 
 Type `sellme`. Arrow keys, enter, or just click.
 
-- **Drafts**: what needs you. One key: `y` sells you, `e` edits, `i` tells the AI how to sell you better. Questions only you can answer come with a suggested reply.
-- **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
+- **Inbox**: what needs you: alerts first, then drafts. One key: `y` sells you, `e` edits, `i` tells the AI how to sell you better. Questions only you can answer come with a suggested reply.
 - **Pipeline**: every role by stage, with its next call. Nudge, follow up, move.
-- **Schedule**: autopilot, and how often to check while you're away (hourly by default, while your computer is awake).
-- **Activity**: everything it did for you.
+- **Chat**: ask SELLME anything about your search.
+- **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
+- **Schedule**: autopilot, how often to check while you're away (hourly by default, while your computer is awake), and everything it did for you.
 
 Already in Claude Code, Codex, Cursor or OpenCode? `/sellme` does the same work there. Or just say it: *"pause"*, *"I got the job"*, *"add Max as a recruiter"*.
 

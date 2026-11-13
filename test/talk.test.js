@@ -31,7 +31,7 @@ test("the chat is given what's on record for the name asked about, and only the 
   assert.doesNotMatch(prompt, /987K/);
   assert.match(prompt, /Never list their other processes/);
   assert.match(prompt, /Never guess a status/);
-  assert.match(prompt, /it goes to Drafts as its own draft[\s\S]*Nothing else is sent or changed from here/);
+  assert.match(prompt, /it goes to their Inbox as its own draft[\s\S]*Nothing else is sent or changed from here/);
   assert.doesNotMatch(prompt, /Look it up before you answer/, "the plain tool isn't told to search");
   const looked = talkPrompt(s, [{ who: "you", text: "what is the status with HP?" }], { research: true });
   assert.match(looked, /nothing found under that name/, "no HP on record says so, instead of letting it guess");
@@ -67,9 +67,9 @@ test("an answer comes back with what to remember, and the chat is kept for next 
   assert.equal(s.chat.at(-1).text, "m49", "notes to the user aren't kept");
 });
 
-test("Chat is a tab right after Drafts", () => {
-  assert.deepEqual(TABS.slice(0, 2), ["Drafts", "Chat"]);
-  assert.ok(footerLine("Drafts", 100).length < 100);
+test("the tabs go Inbox, Pipeline, Chat, Agents, Schedule", () => {
+  assert.deepEqual(TABS, ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"]);
+  assert.ok(footerLine("Inbox", 100).length < 100);
 });
 
 test("what's on record answers at once, and a real look-up happens only when nothing is on record or the user asks", () => {
