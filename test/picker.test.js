@@ -457,7 +457,7 @@ test("a short name isn't mistaken for a catalog service", () => {
 });
 
 // ---------------------------------------------------------------- the pipeline
-test("the pipeline is two lists: the next round by its time, then everything else still open, latest first", () => {
+test("the pipeline is two lists: the next round by its time, then everything else, latest first", () => {
   const s = state();
   s.roles = [];
   const today = new Date("2026-11-03T12:00:00Z");
@@ -466,22 +466,25 @@ test("the pipeline is two lists: the next round by its time, then everything els
   Object.assign(core.addRole(s, { company: "Done Inc", stage: "interview", nextCall: "2026-11-01T15:00:00Z" }), { updated: "2026-11-02T10:00:00Z" });
   Object.assign(core.addRole(s, { company: "Applied Inc", stage: "new" }), { updated: "2026-11-03T10:00:00Z" });
   Object.assign(core.addRole(s, { company: "Old Inc", stage: "talking" }), { updated: "2026-10-01T10:00:00Z" });
-  core.addRole(s, { company: "Nope Inc", stage: "rejected" });
-  core.addRole(s, { company: "Pass Inc", stage: "passed" });
+  Object.assign(core.addRole(s, { company: "Nope Inc", stage: "rejected" }), { updated: "2026-09-02T10:00:00Z" });
+  Object.assign(core.addRole(s, { company: "Pass Inc", stage: "passed" }), { updated: "2026-09-01T10:00:00Z" });
   const rows = pipelineRows(s, today);
-  assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (3)", "Done Inc", "Applied Inc", "Old Inc"]);
+  assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (5)", "Done Inc", "Applied Inc", "Old Inc", "Nope Inc", "Pass Inc"]);
+  assert.deepEqual(rows.slice(4).map((r) => r.stage), ["Interviewing", "Applied", "Applied", "Rejected", "Rejected"], "only applied, interviewing or rejected");
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
   assert.equal(rows[1].detail, "Interviewing");
   assert.equal(rows[4].call, null, "a call that's over isn't next");
-  assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "45h", "Interview"], "a past call is the last thing that happened");
+  assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "45h", ""], "a past call is the last thing that happened");
   assert.deepEqual([rows[5].ago, rows[5].what], ["", ""]);
   core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
   s.queue.push({ id: "q90", agent: "Sam Rivera", channel: "self", to: "sam@example.com", kind: "reply", status: "pending", asked: "Still keen?", company: "Old Inc", created: "2026-11-03T09:00:00Z" });
   const again = pipelineRows(s, today);
-  assert.deepEqual(again.slice(4).map((r) => r.text), ["Old Inc", "Done Inc", "Applied Inc"], "latest interaction first, nothing yet last");
-  assert.deepEqual([again[4].ago, again[4].what], ["3h", "Sam Rivera · email"]);
+  assert.deepEqual(again.slice(4, 7).map((r) => r.text), ["Old Inc", "Done Inc", "Applied Inc"], "latest interaction first, nothing yet last");
+  assert.deepEqual([again[4].ago, again[4].what], ["3h", "Email"], "the channel it's talked on");
   const line = pipelineLine(again[4], " ", c, 100);
-  assert.match(line, /^  Old Inc +Talking +3h  Sam Rivera · email$/);
+  assert.match(line, /^  Old Inc +Applied +3h  Email$/);
+  Object.assign(s.roles.find((r) => r.company === "Applied Inc"), { agent: "Sam Rivera" });
+  assert.equal(pipelineRows(s, today).find((r) => r.text === "Applied Inc").what, "Email", "nothing said yet: the channel of who it came through");
   assert.ok(line.length <= 100);
 });
 
