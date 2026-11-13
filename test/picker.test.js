@@ -19,7 +19,7 @@ import { SCHEDULES, scheduleWarning, scheduledRun, setSchedule, windowsScript } 
 import { findOnPath, toolCommand } from "../lib/rewrite.js";
 import { helperCommand, shimCmd } from "../lib/install.js";
 import { linkedinLogin as linkedinLoginFrom } from "../lib/linkedin.js";
-import { freshState as newState, load, withState } from "../lib/store.js";
+import { freshState as newState, home, load, withState } from "../lib/store.js";
 // These tests check the approval gate itself, so autopilot is off unless a test turns it on.
 const freshState = () => ({ ...newState(), autopilot: false });
 
@@ -1042,6 +1042,12 @@ test("the whole hook: read the page, click the box, type, Enter, and only then c
   assert.equal(load().queue[0].send_cleared.run, run);
   assert.equal(hook({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: `sellme sent ${id}` } }), "allow");
   assert.equal(computer({ action: "key", text: "Return" }), "deny", "only once");
+  // Near the time limit the run is told to close its tab and finish, so stopping it leaves nothing open in Chrome.
+  fs.writeFileSync(path.join(home(), `run.wrapup.${run}`), "");
+  assert.equal(hook({ hook_event_name: "PreToolUse", tool_name: CHROME("navigate"), tool_input: { tabId: 7, url: "https://app.jackandjill.ai/" } }), "deny");
+  assert.match(gateHook(JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "sellme ran" } }), { run }), /Time's up/);
+  assert.equal(hook({ hook_event_name: "PreToolUse", tool_name: CHROME("tabs_close_mcp"), tool_input: { tabId: 7 } }), "allow");
+  fs.rmSync(path.join(home(), `run.wrapup.${run}`));
   if (saved === undefined) delete process.env.SELLME_RUN;
 }));
 
