@@ -144,3 +144,12 @@ test("typing / in Chat suggests its commands, narrowing as it's typed", async ()
   assert.doesNotMatch(screen, /\/clear/);
 });
 
+
+test("the running check and the keys sit on the same bottom rows whatever is above them", async () => {
+  const { pinBottom } = await import("../lib/app.js");
+  const short = pinBottom(["tabs", "a"], ["live", "keys"], 20);
+  const long = pinBottom(["tabs", "a", "b", "c", "d"], ["live", "keys"], 20);
+  assert.equal(short.length, long.length);
+  assert.deepEqual(short.slice(-2), ["live", "keys"]);
+  assert.equal(pinBottom(["tabs"], ["keys"], 20).length, short.length);
+});
