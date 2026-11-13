@@ -721,6 +721,25 @@ test("a schedule refuses what it can't do, and changes nothing", () => withSandb
   assert.equal(calls.length, 0);
 }));
 
+test("a check reads the people the user writes to first, then the agent sites and apps", () => withSandbox(async () => {
+  withState((s) => {
+    core.addAgent(s, "Jack & Jill", { channel: "browser" });
+    core.addAgent(s, "Dex", { channel: "mcp" });
+  });
+  const order = [];
+  const runner = async (prompt) => {
+    const lane = prompt.match(/ran --lane (\w+)/)[1];
+    order.push(`start ${lane}`);
+    await new Promise((r) => setTimeout(r, 5));
+    withState((s) => { (s.lane_runs ??= {})[lane] = new Date().toISOString(); });
+    order.push(`end ${lane}`);
+    return { ok: true, output: "done" };
+  };
+  assert.equal((await scheduledRun({ runner, platform: "linux" })).ok, true);
+  const lastPerson = Math.max(order.indexOf("end email"), order.indexOf("end linkedin"));
+  assert.ok(order.indexOf("start websites") > lastPerson && order.indexOf("start apps") > lastPerson, order.join(", "));
+}));
+
 test("a check does nothing while paused, and two can't overlap", () => withSandbox(async () => {
   withState((s) => { s.paused = true; });
   let ran = 0;
