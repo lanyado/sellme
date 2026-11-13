@@ -1738,7 +1738,7 @@ test("talking one draft over can draft a message to another contact, which lands
   assert.match(prompt, /- Standout: an agent, as Maya Test's AI agent/);
   assert.doesNotMatch(prompt, /- Dana Ford \(/, "the draft's own contact isn't an other");
   const out = parseChat(JSON.stringify({ say: "It's on your list.", text: null, others: [{ to: "Standout", text: "Please don't submit Maya to Acme." }, { to: "Nobody", text: "Hi." }, { to: "Dana Ford", text: "Hi." }] }), s, q);
-  assert.deepEqual(out.others, [{ to: "Standout", text: "Please don't submit Maya to Acme.", sources: [] }], "only the user's other contacts");
+  assert.deepEqual(out.others, [{ to: "Standout", text: "Please don't submit Maya to Acme.", sources: [], kind: "nudge", company: null }], "only the user's other contacts");
   // Standout was written to a minute ago: SELLME's own nudge would wait, but the user asked for this one.
   s.queue.push({ id: "q90", agent: "Standout", status: "sent", sent_at: new Date().toISOString(), text: "Any new matches?" });
   assert.throws(() => core.addDraft(s, { agent: "Standout", text: "Please don't submit Maya to Acme.", kind: "nudge" }));
