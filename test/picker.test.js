@@ -1279,6 +1279,12 @@ test("a LinkedIn reply never goes to a Gmail id: it uses the contact's real conv
   assert.match(linkedinChromePlan(core.outbox(s)[0]).prompt, /no longer with Dana Ford/, "a conversation LinkedIn switched away from is caught before Send");
   s.queue = s.queue.filter((x) => x !== old);
   assert.equal(core.outbox(s)[0].thread, undefined, "none on record: the send looks it up");
+  s.queue.push(old);
+  const { gate } = await import("../lib/agent.js");
+  const browser = { tabs: { 5: "linkedin.com" }, urls: { 5: "https://www.linkedin.com/messaging/thread/2-AbC123xyz/" }, refs: { 5: { ref_1: "box" } }, typed: {} };
+  core.claimSend(s, q.id, "r1");
+  const type = gate({ tool_name: "mcp__claude-in-chrome__computer", tool_input: { action: "type", tabId: 5, text: "Fri works too." } }, s, { run: "r1", browser });
+  assert.equal(type.decision, "allow", "the gate opens the same conversation the send does");
   assert.equal(core.setThread(s, q.id, "2-Real456").thread, "2-Real456", "the real id replaces the Gmail one");
 });
 
