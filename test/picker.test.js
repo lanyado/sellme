@@ -908,7 +908,7 @@ test("the loading screen names what it read, and none of what it says", () => {
   assert.equal(activityLabel("Bash", { command: "sellme role set r1 --next-call 2026-11-05" }), "Updating your pipeline and calls");
   assert.equal(activityLabel("Skill", {}), null);
   const screen = syncScreen(0, 83, ["Reading iMessage", "Reading Fonzi"], c);
-  assert.match(screen, /Selling you to every agent\s+1:23/);
+  assert.match(screen, /Selling you to my agentic friends\s+1:23/);
   assert.match(screen, /✓ Reading iMessage/);
   assert.match(screen, /Reading Fonzi…/);
   assert.match(screen, /esc to skip/);
@@ -1410,7 +1410,7 @@ test("a check knows who to push next: when each contact last heard from the user
 
 test("the live line says it's selling you, what it's reading, and for how long", () => {
   const line = liveLine(0, 1000, ["Reading iMessage", "Reading Fonzi"], c, 43_000);
-  assert.match(line, /Selling you to every agent · Reading Fonzi 0:42$/);
+  assert.match(line, /Selling you to my agentic friends · Reading Fonzi 0:42$/);
 });
 
 // A LinkedIn reply goes through Chrome; a plan that isn't Chrome fails here, so these tests catch one sneaking back.
