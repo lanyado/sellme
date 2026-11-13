@@ -124,3 +124,23 @@ test("/clear archives the conversation for the memory, empties the chat, and the
   clearChat(s, [{ who: "you", text: "my floor is 987K" }]);
   assert.equal(documents(s).chats.length, 1);
 });
+
+test("typing / in Chat suggests its commands, narrowing as it's typed", async () => {
+  const { CHAT_COMMANDS, readChat, slashMatches } = await import("../lib/app.js");
+  const { palette } = await import("../lib/render.js");
+  assert.deepEqual(slashMatches("/").map((x) => x.name), CHAT_COMMANDS.map((x) => x.name));
+  assert.deepEqual(slashMatches("/c").map((x) => x.name), ["/clear", "/check"]);
+  assert.deepEqual(slashMatches("/CH").map((x) => x.name), ["/check"]);
+  assert.deepEqual(slashMatches("/nope"), []);
+  assert.equal(slashMatches("hi /clear"), null, "only at the start");
+  assert.equal(slashMatches("/clear now"), null, "one word only");
+  let screen = "";
+  const typeFn = async (_, { paint, suggest }) => {
+    paint(0, suggest("/ch"));
+    return "/ch";
+  };
+  assert.equal(await readChat(["hello"], palette(null), { typeFn, drawFn: (s) => (screen = s), commands: CHAT_COMMANDS }), "/ch");
+  assert.match(screen, /\/check +Check every agent now\ntab to complete/);
+  assert.doesNotMatch(screen, /\/clear/);
+});
+
