@@ -476,6 +476,8 @@ test("the pipeline is two lists: the next round by its time, then everything els
   const soon = s.roles.find((r) => r.company === "Soon Inc");
   core.setNextCall(s, soon.id, soon.next_call, "Zoom");
   assert.equal(pipelineRows(s, today)[1].detail, "Zoom", "how the call happens instead");
+  soon.prep = { brief: "Ask about the team", for_call: soon.next_call, at: "2026-11-04T08:00:00Z" };
+  assert.match(pipelineLine(pipelineRows(s, today)[1], " ", c, 100), /^  Soon Inc +Next call Nov 5, \d+:00 [AP]M · Zoom$/, "the time and how, not the brief or the stage");
   core.setNextCall(s, soon.id, "2026-11-06T15:00:00Z");
   assert.equal(soon.call_via, null, "a new time is a new invite");
   core.setNextCall(s, soon.id, "2026-11-05T15:00:00Z", "Zoom");
