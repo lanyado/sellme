@@ -479,6 +479,7 @@ test("the pipeline is two lists: the next round by its time, then everything els
   core.setNextCall(s, soon.id, "2026-11-06T15:00:00Z");
   assert.equal(soon.call_via, null, "a new time is a new invite");
   core.setNextCall(s, soon.id, "2026-11-05T15:00:00Z", "Zoom");
+  assert.equal(core.addRole(freshState(), { company: "Meet Inc", nextCall: "2026-11-07T15:00:00Z", callVia: "Meet" }).call_via, "Meet", "a role added with its call keeps the format");
   assert.equal(rows[4].call, null, "a call that's over isn't next");
   assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "1d", ""], "a past call is the last thing that happened, in days once it's a day old");
   assert.deepEqual([rows[5].ago, rows[5].what], ["", ""]);
