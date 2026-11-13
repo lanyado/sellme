@@ -262,11 +262,15 @@ test("a call in the next day gets its brief ahead, once, and a failed try isn't 
   const done = addRole(s, { company: "Done", stage: "rejected" });
   done.next_call = soon;
   assert.deepEqual(dueBriefs(s).map((r) => r.company), ["Near"]);
-  near.prep_tried = { for_call: soon, at: new Date(Date.now() - HOUR).toISOString() };
+  near.prep_tried = { for_call: soon, at: new Date(Date.now() - HOUR).toISOString(), v: BRIEF_VERSION };
   assert.deepEqual(dueBriefs(s), [], "just tried");
   near.prep_tried.at = new Date(Date.now() - 7 * HOUR).toISOString();
   assert.equal(dueBriefs(s).length, 1, "tried long enough ago");
-  near.prep = { brief: "Ready", for_call: soon, v: BRIEF_VERSION };
+  near.prep = { brief: "Ready", for_call: soon, v: BRIEF_VERSION - 1 };
+  near.prep_tried.at = new Date(Date.now() - HOUR).toISOString();
+  near.prep_tried.v = BRIEF_VERSION - 1;
+  assert.equal(dueBriefs(s).length, 1, "written the old way, so it's written again, even though tried an hour ago");
+  near.prep.v = BRIEF_VERSION;
   assert.deepEqual(dueBriefs(s), [], "already written");
 });
 

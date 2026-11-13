@@ -62,7 +62,8 @@ test("a brief is kept for its call, and a new call needs a new one", async () =>
   core.savePrep(s, role.id, result.say);
   assert.equal(savedBrief(role), "Who: Robin\nWhen: Mon 2 PM");
   role.prep = { brief: "Old brief with SELLME's own notes in it", for_call: role.next_call, at: "2026-11-01T00:00:00Z" };
-  assert.equal(savedBrief(role), null, "a brief written the old way is written again");
+  assert.equal(savedBrief(role), "Old brief with SELLME's own notes in it", "one written the old way still reads before the call");
+  assert.equal(savedBrief(role, { fresh: true }), null, "and a check writes it again");
   core.savePrep(s, role.id, result.say);
   core.setNextCall(s, role.id, "2030-02-01T19:00:00Z");
   assert.equal(savedBrief(role), null);
