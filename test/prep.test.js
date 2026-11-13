@@ -40,6 +40,8 @@ test("the brief knows this role's thread and the user's facts, and never the flo
   assert.match(prompt, /Never write about SELLME, its records, drafts or checks, what was or wasn't found/);
   assert.match(prompt, /never two versions of one fact/);
   assert.match(prompt, /put it in THREE QUESTIONS TO ASK instead/);
+  assert.match(prompt, /WHO AND WHEN .*THE INTERVIEWER \(their role and team.*THE ROLE .*WHY US\? .*LIKELY QUESTIONS/s, "every brief has the interviewer and why us");
+  assert.match(prompt, /1\. simple logistics.*never pay unless it already came up.*2\. the nature of the work.*3\. a sharper one about their industry/s);
   assert.match(prompt, /Call time on file: .*may be out of date/);
   assert.doesNotMatch(prompt, /If something isn't known, say so/, "the brief never narrates what's unknown");
   assert.match(prompt, /f1: Led a team of 6/);
@@ -114,6 +116,7 @@ test("a brief shows headings, bold, underline and lists as styles, never as raw 
   assert.equal(out[1], "• <b>Dana Ford</b>, Fri at <b>3:00 PM</b>");
   assert.equal(out[2], "• <b>Place</b>: 1 Main St", "an unmarked label is bolded, so older briefs read the same");
   assert.ok(out.includes("<u><b>LIKELY QUESTIONS</b></u>"));
+  assert.equal(rich("WHY US?\n- Because.", 40, c)[0], "<u><b>WHY US?</b></u>", "a heading can end in a question mark");
   const q = out.findIndex((l) => l.startsWith("1. "));
   assert.match(out[q], /^1\. <b>Why us\?<\/b> /);
   assert.match(out[q + 1], /^ {3}\S/, "a wrapped list line hangs under its text");
