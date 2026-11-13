@@ -153,3 +153,17 @@ test("the running check and the keys sit on the same bottom rows whatever is abo
   assert.deepEqual(short.slice(-2), ["live", "keys"]);
   assert.equal(pinBottom(["tabs"], ["keys"], 20).length, short.length);
 });
+
+test("while SELLME works, the talk scrolls and its working line stays at the bottom", async () => {
+  const { workScreen } = await import("../lib/app.js");
+  const lines = Array.from({ length: 80 }, (_, i) => `line ${i}`);
+  const newest = workScreen({ lines, end: ["thinking"] }, 0);
+  assert.match(newest.text, /line 79\n[\s\S]*thinking$/);
+  const up = workScreen({ lines, end: ["thinking"] }, 10);
+  assert.doesNotMatch(up.text, /line 79\n/);
+  assert.match(up.text, /thinking$/, "the working line stays put");
+  const top = workScreen({ lines, end: ["thinking"] }, 10_000);
+  assert.match(top.text, /^\nline 0\n/, "it stops at the top");
+  assert.ok(top.back < 80);
+  assert.equal(workScreen({ lines, end: ["thinking"] }, -5).back, 0, "and at the newest line");
+});
