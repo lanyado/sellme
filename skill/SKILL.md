@@ -55,7 +55,7 @@ Honesty is about credentials, not tone. Selling the user is the job: warmth, ent
 
 ## What the user typed
 
-Keep this simple for them. `/sellme` does the daily work, and they never have to learn another command. If they'd rather review in a terminal, `sellme` opens the app, with tabs for drafts, agents, pipeline, schedule and activity.
+Keep this simple for them. `/sellme` does the daily work, and they never have to learn another command. If they'd rather review in a terminal, `sellme` opens the app, with tabs for the inbox, pipeline, chat, agents and schedule.
 
 **`/sellme` with nothing after it:**
 1. Run `{{SELLME}} brief --json --peek`.
