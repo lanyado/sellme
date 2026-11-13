@@ -474,7 +474,7 @@ test("the pipeline is two lists: the next round by its time, then everything els
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
   assert.equal(rows[1].detail, "Interviewing");
   assert.equal(rows[4].call, null, "a call that's over isn't next");
-  assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "45h", ""], "a past call is the last thing that happened");
+  assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "1d", ""], "a past call is the last thing that happened, in days once it's a day old");
   assert.deepEqual([rows[5].ago, rows[5].what], ["", ""]);
   core.addRecruiter(s, "Sam Rivera", { handle: "sam@example.com" });
   s.queue.push({ id: "q90", agent: "Sam Rivera", channel: "self", to: "sam@example.com", kind: "reply", status: "pending", asked: "Still keen?", company: "Old Inc", created: "2026-11-03T09:00:00Z" });
@@ -2026,3 +2026,23 @@ test("a run can read its own saved tool output and close LinkedIn's session, and
   assert.equal(read(path.join(projects, home().replace(/[^A-Za-z0-9]/g, "-"), "abc.jsonl")), "deny", "only tool output, not transcripts");
   assert.equal(gate({ tool_name: "mcp__linkedin__close_session", tool_input: {} }, load(), { run: "r1" }).decision, "allow");
 }));
+
+test("a call that's going on stays first, with its brief, until it ends", async () => {
+  const { preppable } = await import("../lib/prep.js");
+  const { span } = await import("../lib/insights.js");
+  const { ago } = await import("../lib/render.js");
+  const s = state();
+  s.roles = [];
+  const role = core.addRole(s, { company: "Northwind", stage: "talking", nextCall: "2026-11-13T16:15:00Z" });
+  core.addRole(s, { company: "Later Inc", stage: "interview", nextCall: "2026-11-14T16:00:00Z" });
+  const during = new Date("2026-11-13T16:34:00Z");
+  const rows = pipelineRows(s, during);
+  assert.deepEqual(rows.slice(0, 3).map((r) => r.heading ?? r.text), ["Next round (2)", "Northwind", "Later Inc"]);
+  assert.equal(rows[1].soon, "Call on now");
+  assert.ok(preppable(role, during), "the brief stays open during the call");
+  const after = new Date("2026-11-13T17:20:00Z");
+  assert.equal(pipelineRows(s, after)[0].heading, "Next round (1)", "an hour on, it's over");
+  assert.equal(preppable(role, after), false);
+  assert.deepEqual([span(23 * 3600_000), span(24 * 3600_000), span(47 * 3600_000), span(49 * 3600_000)], ["23h", "1d", "1d", "2d"]);
+  assert.deepEqual([ago(5 * 3600_000), ago(30 * 3600_000), ago(50 * 3600_000)], ["5h ago", "1d ago", "2d ago"]);
+});
