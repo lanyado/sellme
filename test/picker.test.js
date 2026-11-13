@@ -472,7 +472,13 @@ test("the pipeline is two lists: the next round by its time, then everything els
   assert.deepEqual(rows.map((r) => r.heading ?? r.text), ["Next round (2)", "Soon Inc", "Later Inc", "Everything else (5)", "Done Inc", "Applied Inc", "Old Inc", "Nope Inc", "Pass Inc"]);
   assert.deepEqual(rows.slice(4).map((r) => r.stage), ["Interviewing", "Applied", "Applied", "Rejected", "Rejected"], "only applied, interviewing or rejected");
   assert.equal(rows[1].call, new Date("2026-11-05T15:00:00Z").toISOString());
-  assert.equal(rows[1].detail, "Interviewing");
+  assert.equal(rows[1].detail, "", "a booked call says where it stands, so no stage word");
+  const soon = s.roles.find((r) => r.company === "Soon Inc");
+  core.setNextCall(s, soon.id, soon.next_call, "Zoom");
+  assert.equal(pipelineRows(s, today)[1].detail, "Zoom", "how the call happens instead");
+  core.setNextCall(s, soon.id, "2026-11-06T15:00:00Z");
+  assert.equal(soon.call_via, null, "a new time is a new invite");
+  core.setNextCall(s, soon.id, "2026-11-05T15:00:00Z", "Zoom");
   assert.equal(rows[4].call, null, "a call that's over isn't next");
   assert.deepEqual([rows[4].stage, rows[4].ago, rows[4].what], ["Interviewing", "1d", ""], "a past call is the last thing that happened, in days once it's a day old");
   assert.deepEqual([rows[5].ago, rows[5].what], ["", ""]);

@@ -41,6 +41,7 @@ test("the brief knows this role's thread and the user's facts, and never the flo
   assert.match(prompt, /never two versions of one fact/);
   assert.match(prompt, /put it in THREE QUESTIONS TO ASK instead/);
   assert.match(prompt, /WHO AND WHEN .*THE INTERVIEWER \(their role and team.*THE ROLE .*WHY US\? .*LIKELY QUESTIONS/s, "every brief has the interviewer and why us");
+  assert.match(prompt, /1\. simple logistics.*never pay unless it already came up.*2\. the nature of the work.*3\. a sharper one about their industry/s);
   assert.match(prompt, /Call time on file: .*may be out of date/);
   assert.doesNotMatch(prompt, /If something isn't known, say so/, "the brief never narrates what's unknown");
   assert.match(prompt, /f1: Led a team of 6/);
