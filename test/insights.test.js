@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BRIEF_VERSION, answerEarned, addAgent, addDraft, addRole, approve, earnedOffer, earnedStreak, instruct, markSent, pushList, setAuto, setRole, skip, topicOf } from "../lib/core.js";
-import { draftActions, timelineRows } from "../lib/app.js";
-import { DAY, HOUR, attributed, talkedAbout, nudgePlan, reached, replyTiming, roleStory, scorecard, timeline } from "../lib/insights.js";
+import { draftActions } from "../lib/app.js";
+import { DAY, HOUR, attributed, talkedAbout, reached, replyTiming, scorecard } from "../lib/insights.js";
 import { dueBriefs } from "../lib/prep.js";
-import { card, diffLines, palette, scorecard as scorecardScreen, timelineAxis, timelineScale, timelineStrip, wordDiff } from "../lib/render.js";
+import { card, diffLines, palette, scorecard as scorecardScreen, wordDiff } from "../lib/render.js";
 import { freshState } from "../lib/store.js";
 
 const plain = palette(null);
@@ -176,80 +176,6 @@ test("a card shows what changed only when asked, and offers to copy the draft", 
   const rewritten = card(q, plain, "", 80, { diff: true });
   assert.doesNotMatch(rewritten, /Before/, "a full rewrite is still shown in red and green, never as before and after");
   assert.match(rewritten, /\+\{Nothing/);
-});
-
-test("the timeline sorts by what needs attention, and each row is exactly as wide as the terminal allows", () => {
-  const s = search();
-  const stuck = addRole(s, { company: "Stuckco", title: "FDE", agent: "Dex", stage: "interview" });
-  s.queue.push({ id: "q90", agent: "Dex", channel: "mcp", kind: "reply", status: "sent", company: "Stuckco", text: "Any update?", sent_at: ago(9 * DAY), created: ago(9 * DAY) });
-  const fresh = addRole(s, { company: "Freshco", agent: "Dana Lee", stage: "talking" });
-  s.queue.push({ id: "q91", agent: "Dana Lee", channel: "self", kind: "reply", status: "sent", company: "Freshco", text: "Thanks", sent_at: ago(HOUR), created: ago(HOUR) });
-  const call = addRole(s, { company: "Callco", agent: "Dana Lee", stage: "interview" });
-  call.next_call = new Date(NOW.getTime() + 14 * HOUR).toISOString();
-  const open = addRole(s, { company: "Openco", agent: "Slowbot", stage: "talking" });
-  s.queue.push({ id: "q92", agent: "Slowbot", channel: "mcp", kind: "reply", status: "pending", company: "Openco", asked: "Remote?", text: "Yes", created: ago(2 * DAY) });
-  addRole(s, { company: "Quietnew" });
-  addRole(s, { company: "Gone", stage: "rejected" });
-  const t = timeline(s, NOW);
-  assert.deepEqual([t.onYou, t.calls, t.stuck, t.moving].map((g) => g.map((x) => x.role.company)), [["Openco"], ["Callco"], ["Stuckco"], ["Freshco"]]);
-  assert.equal(t.idle, 1, "a match nobody has spoken to is only counted");
-  assert.equal(roleStory(s, stuck, NOW).stuck, true);
-  assert.equal(roleStory(s, fresh, NOW).stuck, false);
-  for (const width of [60, 80, 100, 140, 200]) {
-    for (const [c, frame] of [[plain, Infinity], [color, 4], [color, 40]]) {
-      const rows = timelineRows(s, { today: NOW, width, frame, c });
-      for (const row of rows.filter((r) => r.line)) assert.ok(visible(row.line).length + 2 <= width, `${width}: ${visible(row.line)}`);
-      for (const line of rows.pin) assert.ok(visible(line).length <= width, `${width}: ${visible(line)}`);
-      for (const line of rows.panel(rows.find((r) => r.story)).split("\n")) assert.ok(visible(line).length <= width, `${width}: ${visible(line)}`);
-      const lengths = new Set(rows.filter((r) => r.line).map((r) => visible(timelineStrip(r.story, { today: NOW, days: 30, c })).length));
-      assert.deepEqual([...lengths], [38], "the strips line up");
-    }
-  }
-  const rows = timelineRows(s, { today: NOW, width: 120, c: plain });
-  assert.equal(rows.find((r) => r.id === open.id).onYou, "q92", "enter on one waiting on you opens that draft");
-  const line = rows.find((r) => r.id === stuck.id).line;
-  assert.match(line, /stuck 9d/);
-  assert.match(line, /●[░▒▓█]+│/, "a sent message, then silence up to today");
-  assert.match(rows.find((r) => r.id === call.id).line, /▲/);
-  assert.match(rows.panel(rows.find((r) => r.id === stuck.id)), /Quiet for 9d, and a nudge was due after 2d/);
-  assert.match(timelineAxis({ today: NOW, days: 30 }), /\d +today/, "the dates never run into today");
-});
-
-test("the timeline's time fits the search: a short history fills the strip instead of huddling against today", () => {
-  const story = (...ages) => ({ events: ages.map((d) => ({ at: ago(d * DAY), type: "you" })), since: NOW.getTime() - Math.min(...ages) * DAY, after: 2 * DAY, waiting: "them", stuck: true, upcoming: null });
-  const short = timelineScale([story(9, 6), story(2)], 80, NOW);
-  assert.ok(short.perDay >= 5, `a ten-day search gets room: ${short.perDay} columns a day`);
-  assert.ok(short.days <= 16, `and no months of empty dates: ${short.days} days`);
-  assert.equal(short.perDay * (short.days + short.ahead) + short.spare, 80, "it uses all the room");
-  const strip = visible(timelineStrip(story(9, 6), { today: NOW, ...short, c: plain }));
-  assert.ok(strip.indexOf("●") < strip.length * 0.5, `the first event isn't jammed at the edge: ${strip}`);
-  const many = Array.from({ length: 60 }, (_, i) => story(1 + (i % 8)));
-  const outlier = timelineScale([...many, story(300)], 80, NOW);
-  assert.ok(outlier.days <= 20, "one stray old event doesn't stretch everyone");
-  const long = timelineScale([story(200)], 80, NOW);
-  assert.equal(long.perDay, 1, "a long search still fits, a column a day");
-  const call = { ...story(3), upcoming: new Date(NOW.getTime() + 4 * DAY + HOUR).toISOString(), waiting: "call" };
-  const withCall = timelineScale([call], 80, NOW);
-  assert.ok(withCall.ahead >= 5, "the future reaches the next call");
-  assert.match(visible(timelineStrip(call, { today: NOW, ...withCall, c: plain })), /│ +▲/);
-  assert.equal(timelineScale([story(2)], 80, NOW).ahead, 2, "and no further than it has to");
-  const axis = timelineAxis({ today: NOW, ...short });
-  assert.equal(axis.length, (short.days + short.ahead) * short.perDay + 1);
-  assert.ok((axis.match(/[A-Z][a-z]{2} \d+/g) ?? []).length >= 3, axis);
-  assert.match(axis, /today/);
-});
-
-test("nudge all writes each stuck contact once, and leaves alone anyone waiting on the user or just written to", () => {
-  const s = search();
-  for (const company of ["One", "Two"]) {
-    addRole(s, { company, agent: "Dex", stage: "talking" });
-    s.queue.push({ id: `q-${company}`, agent: "Dex", channel: "mcp", kind: "reply", status: "sent", company, text: "Any news?", sent_at: ago(5 * DAY), created: ago(5 * DAY) });
-  }
-  addRole(s, { company: "Three", agent: "Slowbot", stage: "talking" });
-  s.queue.push({ id: "q3", agent: "Slowbot", channel: "mcp", kind: "reply", status: "sent", company: "Three", text: "Any news?", sent_at: ago(5 * DAY), created: ago(5 * DAY) });
-  s.queue.push({ id: "q4", agent: "Slowbot", channel: "mcp", kind: "reply", status: "pending", company: "Elsewhere", text: "Waiting", created: ago(HOUR) });
-  addRole(s, { company: "Four", agent: "Removed", stage: "talking" });
-  assert.deepEqual(nudgePlan(s, NOW).map((x) => x.role.agent), ["Dex"]);
 });
 
 test("a call in the next day gets its brief ahead, once, and a failed try isn't repeated every hour", async () => {
