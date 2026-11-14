@@ -65,13 +65,8 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 <tr><td>💬 <b>Chat</b></td><td>A Chat tab to ask SELLME anything about your search: what to focus on, how a company is going, what to say. It knows your pipeline and remembers what you tell it.</td></tr>
 <tr><td>🎤 <b>Preps you</b></td><td>The day before a call, the brief is already written. Press p on the role: a two-minute brief on who you're meeting, what's been said, likely questions with answers from your own facts, and what to ask. Then ask SELLME anything about it.</td></tr>
 <tr><td>📈 <b>Learns</b></td><td>It learns your style from your edits, nudges each contact on their own clock instead of a fixed number of days, and scores every agent by the interviews it actually got you. After enough unchanged yeses on one topic, it offers to stop asking about that topic.</td></tr>
-<tr><td>🔥 <b>Timeline</b></td><td>Press t in Pipeline: every live role as a strip of days that glows hotter the longer it's gone quiet, with one key to nudge what's stuck.</td></tr>
 <tr><td>🧠 <b>Remembers</b></td><td>What you tell it about yourself, in a note, a talk or an answer ("I ask $120/hr for contract roles", "open to travel"), becomes a fact, so you never say it twice.</td></tr>
 </table>
-
-<p align="center">
-  <img src="assets/timeline.svg" alt="The Timeline: every live role as a strip of days. The stuck one glows hotter until a nudge cools it." width="100%">
-</p>
 
 ## 🎯 Sure? It sends. Not sure? It asks.
 
@@ -97,7 +92,7 @@ Sellme always admits it's an AI when asked. It never claims to be you, and never
 Type `sellme`. Arrow keys, enter, or just click.
 
 - **Inbox**: what needs you: alerts first, then drafts. One key: `y` sells you, `e` edits, `d` talks it over with SELLME. Questions only you can answer come with a suggested reply.
-- **Pipeline**: the next round first, soonest call on top, then everything else by its last move. `t` for the Timeline, `p` to prep for a call. Nudge, follow up, move.
+- **Pipeline**: the next round first, soonest call on top, then everything else by its last move. `p` to prep for a call. Nudge, follow up, move.
 - **Chat**: ask SELLME anything about your search.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Schedule**: autopilot, how often to check while you're away (hourly by default, while your computer is awake), and everything it did for you.
