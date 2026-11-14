@@ -39,7 +39,7 @@ One install gives you both. Use either one, or both: they share the same search 
 <br>
 
 <p align="center">
-  <img src="assets/app.svg" alt="The Sellme app: drafts that need you, messages sent for you, and one on its way." width="100%">
+  <img src="assets/app.svg" alt="The Sellme app: the Inbox with what needs you, two messages going out, and one flying to Standout." width="100%">
 </p>
 
 ## 🎯 Not a tool. An agent with one goal.
@@ -90,7 +90,7 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 Autopilot is on from the start. A message goes out by itself only when every claim in it is backed by your resume or your own answers and passes the truth check. Everything else lands on your list as a ready-to-send draft: press `y`, or edit it first.
 
 <p align="center">
-  <img src="assets/truth.svg" alt="The truth check: a draft saying a team of 20 is blocked because the resume says 6, and the corrected draft is sent." width="100%">
+  <img src="assets/truth.svg" alt="The truth check on a draft card: a reply saying a team of 20 is flagged because 20 isn't in your facts, edited to 6, then sold to Fonzi." width="100%">
 </p>
 
 > [!IMPORTANT]
@@ -108,8 +108,8 @@ Sellme always admits it's an AI when asked. It never claims to be you, and never
 
 Type `sellme`. Arrow keys, enter, or just click.
 
-- **Inbox**: what needs you: alerts first, then drafts. One key: `y` sells you, `e` edits, `i` tells the AI how to sell you better. Questions only you can answer come with a suggested reply.
-- **Pipeline**: every role by stage, with its next call. Nudge, follow up, move.
+- **Inbox**: what needs you: alerts first, then drafts. One key: `y` sells you, `e` edits, `d` talks it over with SELLME. Questions only you can answer come with a suggested reply.
+- **Pipeline**: the next round first, soonest call on top, then everything else by its last move. `t` for the Timeline, `p` to prep for a call. Nudge, follow up, move.
 - **Chat**: ask SELLME anything about your search.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Schedule**: autopilot, how often to check while you're away (hourly by default, while your computer is awake), and everything it did for you.
