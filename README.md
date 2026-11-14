@@ -69,9 +69,17 @@ Every AI Sellme starts gets these lines, word for word. The jokes stay between y
 <tr><td>🧠 <b>Remembers</b></td><td>What you tell it about yourself, in a note, a talk or an answer ("I ask $120/hr for contract roles", "open to travel"), becomes a fact, so you never say it twice.</td></tr>
 </table>
 
+<p align="center">
+  <img src="assets/timeline.svg" alt="The Timeline: every live role as a strip of days. The stuck one glows hotter until a nudge cools it." width="100%">
+</p>
+
 ## 🎯 Sure? It sends. Not sure? It asks.
 
 Autopilot is on from the start. A message goes out by itself only when every claim in it is backed by your resume or your own answers and passes the truth check. Everything else lands on your list as a ready-to-send draft: press `y`, or edit it first.
+
+<p align="center">
+  <img src="assets/truth.svg" alt="The truth check: a draft saying a team of 20 is blocked because the resume says 6, and the corrected draft is sent." width="100%">
+</p>
 
 > [!IMPORTANT]
 > **Always yours:** pay and offers, your salary floor, booking your time, a first message to someone new, and anything it can't back up. *"Managed a team of 20?"* Your resume says 6. It won't round up. You have to do the interview.
@@ -93,6 +101,10 @@ Type `sellme`. Arrow keys, enter, or just click.
 - **Chat**: ask SELLME anything about your search.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Schedule**: autopilot, how often to check while you're away (hourly by default, while your computer is awake), and everything it did for you.
+
+<p align="center">
+  <img src="assets/chat.svg" alt="The Chat tab: you ask which call to prep for, SELLME thinks, then answers from your pipeline and your own facts." width="100%">
+</p>
 
 Already in Claude Code, Codex, Cursor or OpenCode? `/sellme` does the same work there. Or just say it: *"pause"*, *"I got the job"*, *"add Max as a recruiter"*.
 
