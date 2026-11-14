@@ -24,6 +24,18 @@ npx sellme@latest   # then type: sellme
 
 That's the whole manual.
 
+## 🔀 Two ways to run it
+
+One install gives you both. Use either one, or both: they share the same search in `~/.sellme`.
+
+| | **1. The skill** | **2. The app** |
+|---|---|---|
+| Where | Inside Claude Code, Codex, Cursor or OpenCode | Its own screen in your terminal |
+| Start it | Type `/sellme`, or just say *"check my recruiters"* | Type `sellme` |
+| Looks like | A chat with your AI tool | Tabs: Inbox, Pipeline, Chat, Agents, Schedule. Arrow keys, one-key answers, clicks |
+| Works through | The tool you typed it in | Your signed-in Claude Code, and checks every hour on its own |
+| Best for | Living in your AI tool already | Seeing your whole search at a glance |
+
 <br>
 
 <p align="center">
@@ -94,7 +106,7 @@ Type `sellme`. Arrow keys, enter, or just click.
 - **Agents**: the catalog of AI recruiters, plus the humans you add. Connect any of them in one step.
 - **Schedule**: autopilot, how often to check while you're away (hourly by default, while your computer is awake), and everything it did for you.
 
-Already in Claude Code, Codex, Cursor or OpenCode? `/sellme` does the same work there. Or just say it: *"pause"*, *"I got the job"*, *"add Max as a recruiter"*.
+Rather stay in your AI tool? The skill (`/sellme`) does the same work there. Or just say it: *"pause"*, *"I got the job"*, *"add Max as a recruiter"*.
 
 ## 🔌 Feed it more, it sells you better
 
