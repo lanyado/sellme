@@ -46,68 +46,6 @@ function logoRects(x0, y0, cw, ch) {
   fs.writeFileSync(`${OUT}/hero.svg`, svg);
 }
 
-// ---------- the app, working
-{
-  const W = 1000, cw = 9.6, lh = 26, fs_ = 16, x0 = 34;
-  const lines = [];
-  let y = 84;
-  const line = (parts) => { lines.push({ y, parts }); y += lh; };
-  const gap = () => { y += lh * 0.55; };
-  // parts: [text, color, weight?]
-  line([["[Drafts]", LIME, 700], ["  Agents   Pipeline   Schedule   Activity", MUTED]]);
-  line([["Getting you hired: 2 interviews, 5 talking · 2 drafts need you · checked 8:02 AM", MUTED]]);
-  const liveY = y; line([["  ", TEXT], ["Selling you to every agent", TEXT, 700], [" · Reading Jack & Jill  0:12", MUTED]]);
-  gap();
-  line([["NEEDS YOU", MUTED]]);
-  line([["❯ ", LIME], ["? Boardy         ", TEXT], ["Lee runs Northwind Talent. Want the intro?", MUTED]]);
-  line([["  ✗ Fonzi          ", TEXT], ["Managed a team of 20? ", MUTED], ["Your resume says 6.", RED]]);
-  gap();
-  line([["SENT FOR YOU WHILE YOU SLEPT", MUTED]]);
-  line([["  ✓ Standout       ", LIME], ["“Yes. Maya can work from NYC or remote.”", TEXT]]);
-  line([["  ✓ Jack & Jill    ", LIME], ["“Any new forward-deployed roles for Maya?”", TEXT]]);
-  line([["  ✓ Sam Rivera     ", LIME], ["“Thanks for the call! Here’s my resume.”", TEXT], ["  + resume.pdf", VIOLET]]);
-  gap();
-  const flightY = y; y += lh;
-  const statusY = y; y += lh;
-  const H = y + 30;
-  const text = lines.map(({ y: ly, parts }) => {
-    const spans = parts.map(([t, color, weight]) => `<tspan fill="${color}"${weight ? ` font-weight="${weight}"` : ""}>${esc(t)}</tspan>`).join("");
-    return `<text x="${x0}" y="${ly}" xml:space="preserve">${spans}</text>`;
-  }).join("\n");
-  // spinner frames on the live line
-  const frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
-  const n = frames.length;
-  const spin = [...frames].map((f, i) => {
-    const keys = i === 0 ? "0;0.1" : `0;${(i / n).toFixed(2)};${((i + 1) / n).toFixed(2)}`;
-    const vals = i === 0 ? "visible;hidden" : "hidden;visible;hidden";
-    return `<text x="${x0}" y="${liveY}" fill="${LIME}">${f}<animate attributeName="visibility" values="${vals}" keyTimes="${keys}" calcMode="discrete" dur="0.9s" repeatCount="indefinite"/></text>`;
-  }).join("");
-  // the flight: you ━━━━✉····· Fonzi, looping
-  const track = 24, tx = x0 + 4 * cw, tw = track * cw;
-  const flight = `
-<text x="${x0}" y="${flightY}" fill="${TEXT}">you</text>
-<line x1="${tx}" y1="${flightY - 5}" x2="${tx + tw}" y2="${flightY - 5}" stroke="${MUTED}" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
-<line x1="${tx}" y1="${flightY - 5}" x2="${tx}" y2="${flightY - 5}" stroke="${LIME}" stroke-width="3" stroke-linecap="round">
-  <animate attributeName="x2" values="${tx};${tx + tw};${tx + tw}" keyTimes="0;0.8;1" dur="2.6s" repeatCount="indefinite"/>
-</line>
-<text y="${flightY}" fill="${LIME}" font-weight="700">✉<animate attributeName="x" values="${tx - 4};${tx + tw - 4};${tx + tw - 4}" keyTimes="0;0.8;1" dur="2.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.78;0.8;1" dur="2.6s" repeatCount="indefinite"/></text>
-<text x="${tx + tw + 14}" y="${flightY}" fill="${TEXT}" font-weight="700">Fonzi</text>
-<text x="${tx + tw + 14 + 6 * cw}" y="${flightY}" fill="${LIME}" font-weight="700" opacity="0">✓<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.8;0.82;1" dur="2.6s" repeatCount="indefinite"/></text>
-<text x="${x0}" y="${statusY}" fill="${MUTED}">Selling you to Fonzi…</text>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="The Sellme app: drafts that need you, messages sent for you, and a message on its way.">
-<rect width="${W}" height="${H}" rx="16" fill="${PANEL}"/>
-<rect width="${W}" height="40" rx="16" fill="#2A2638"/><rect y="24" width="${W}" height="16" fill="#2A2638"/>
-<circle cx="26" cy="20" r="6.5" fill="#FF5F57"/><circle cx="48" cy="20" r="6.5" fill="#FEBC2E"/><circle cx="70" cy="20" r="6.5" fill="#28C840"/>
-<text x="${W / 2}" y="25" text-anchor="middle" font-family="${FONT}" font-size="13" fill="${MUTED}">~ sellme</text>
-<g font-family="${FONT}" font-size="${fs_}">
-${text}
-${spin}
-${flight}
-</g>
-</svg>`;
-  fs.writeFileSync(`${OUT}/app.svg`, svg);
-}
-
 // ---------- the skill file, as a card
 {
   const W = 960, x0 = 44, lh = 30;
@@ -180,29 +118,83 @@ ${body}
 </svg>`;
 const tabs = (active) => ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"].map((t) => (t === active ? [`[${t}]`, LIME, 700] : [` ${t} `, MUTED])).flatMap((p, i) => (i ? [[" ", MUTED], p] : [p]));
 
-// ---------- the truth check: a number the resume doesn't back is blocked, the fixed draft goes out
+// ---------- the app, working: the Inbox as it is now, with a message flying to Standout
 {
-  const W = 1000, D = 9, cw = 9.6, x0 = 34, lh = 28;
+  const W = 1000, D = 2.6, cw = 9.6, lh = 26, x0 = 34;
+  const ax = x0 + 2 * cw, sx = x0 + 20 * cw, tx_ = x0 + 44 * cw; // The Inbox's columns: who, status, what.
   let y = 84;
-  const at = () => { const v = y; y += lh; return v; };
-  const head = at(), asks = (y += 8, at()), draft1 = (y += 6, at()), check = at(), verdict = at(), draft2 = (y += 10, at()), sent = at();
-  const H = y + 22;
-  const first = "I managed a team of 20 engineers at Acme.".length, second = "I managed a team of 6 engineers at Acme.".length;
-  const t1 = typed("t1", x0 + 8 * cw, draft1, first, cw, 0.06, 0.26, D);
-  const t2 = typed("t2", x0 + 8 * cw, draft2, second, cw, 0.56, 0.72, D);
+  const at = (gap = 0) => { y += gap; const v = y; y += lh; return v; };
+  const head = at(), sum = at();
+  const needs = at(lh * 0.5), r1 = at(), r2 = at(), r3 = at();
+  const going = at(lh * 0.5), r4 = at(), r5 = at();
+  const flightY = at(lh * 0.6), sold = at();
+  const live = at(lh * 0.4), hint = at();
+  const H = y + 8;
+  const row = (ry, who, status, tone, what, pointer = false) => [
+    pointer ? say(x0, ry, [["❯", LIME]]) : "",
+    say(ax, ry, [[who, TEXT]]),
+    status ? say(sx, ry, [[status, tone]]) : "",
+    say(tx_, ry, [[what, MUTED]]),
+  ].join("");
+  const track = 30, fx = x0 + 4 * cw, tw = track * cw;
   const body = [
     say(x0, head, tabs("Inbox")),
-    say(x0, asks, [["Fonzi asks  ", MUTED], ["“How big was the team you managed at Acme?”", TEXT]]),
-    `<text x="${x0}" y="${draft1}" xml:space="preserve"><tspan fill="${MUTED}">Draft   </tspan></text>`,
-    `<text x="${x0 + 8 * cw}" y="${draft1}" xml:space="preserve" fill="${TEXT}" ${t1.use}>I managed a team of <tspan font-weight="700">20${fillAt(TEXT, RED, 0.42, 1, D)}</tspan> engineers at Acme.${`<animate attributeName="opacity" values="1;0.45" keyTimes="0;0.52" calcMode="discrete" dur="${D}s" repeatCount="indefinite"/>`}</text>`,
-    `<g opacity="0">${spinner(x0, check)}${say(x0 + 2 * cw, check, [["Checking every claim against your resume…", MUTED]])}${shownAt(0.28, 0.42, D)}</g>`,
-    `<g opacity="0">${say(x0, check, [["✗ Blocked  ", RED, 700], ["20 isn’t in anything you gave it.", TEXT]])}${shownAt(0.42, 1, D)}</g>`,
-    `<g opacity="0">${say(x0, verdict, [["           Your resume says 6. ", RED], ["It won’t round up.", MUTED]])}${shownAt(0.45, 1, D)}</g>`,
-    `<g opacity="0">${say(x0, draft2, [["Draft   ", MUTED]])}${shownAt(0.56, 1, D)}</g>`,
-    `<text x="${x0 + 8 * cw}" y="${draft2}" xml:space="preserve" fill="${TEXT}" ${t2.use}>I managed a team of <tspan fill="${LIME}" font-weight="700">6</tspan> engineers at Acme.</text>`,
-    `<g opacity="0">${say(x0, sent, [["✓ Every claim backed by your resume · ", LIME, 700], ["sent to Fonzi", TEXT]])}${shownAt(0.76, 1, D)}</g>`,
+    say(x0, sum, [["Selling you: 1 interview, 4 talking · 3 drafts need you · selling you to 2 now · checked 8:02 AM", MUTED]]),
+    say(x0, needs, [["NEEDS YOU", MUTED]]),
+    row(r1, "Boardy", "only you know", VIOLET, "app · sent 12m ago", true),
+    row(r2, "Fonzi", "needs a fix", RED, "app · sent 1h ago"),
+    row(r3, "Sam Rivera", "check: your time", VIOLET, "email · sent 2h ago"),
+    say(x0, going, [["SELLING YOU NOW", MUTED]]),
+    spinner(sx, r4) + say(sx + 2 * cw, r4, [["sending 0:02", LIME]]) + say(ax, r4, [["Standout", TEXT]]) + say(tx_, r4, [["Yes. Maya can work from NYC or remote.", MUTED]]),
+    row(r5, "Jack & Jill", "approved", LIME, "goes out next"),
+    `<text x="${x0}" y="${flightY}" fill="${TEXT}">you</text>
+<line x1="${fx}" y1="${flightY - 5}" x2="${fx + tw}" y2="${flightY - 5}" stroke="${MUTED}" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+<line x1="${fx}" y1="${flightY - 5}" x2="${fx}" y2="${flightY - 5}" stroke="${LIME}" stroke-width="3" stroke-linecap="round"><animate attributeName="x2" values="${fx};${fx + tw};${fx + tw}" keyTimes="0;0.8;1" dur="${D}s" repeatCount="indefinite"/></line>
+<text y="${flightY}" fill="${LIME}" font-weight="700">✉<animate attributeName="x" values="${fx - 4};${fx + tw - 4};${fx + tw - 4}" keyTimes="0;0.8;1" dur="${D}s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.78;0.8;1" dur="${D}s" repeatCount="indefinite"/></text>
+<text x="${fx + tw + 14}" y="${flightY}" fill="${TEXT}" font-weight="700">Standout</text>
+<text x="${fx + tw + 14 + 9 * cw}" y="${flightY}" fill="${LIME}" font-weight="700" opacity="0">✓<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.8;0.82;1" dur="${D}s" repeatCount="indefinite"/></text>`,
+    `<g opacity="0">${say(x0, sold, [["✓", LIME], [" Sold you to Standout.", TEXT]])}${shownAt(0.82, 1, D)}</g>`,
+    spinner(x0, live) + say(x0 + 2 * cw, live, [["Selling you to my agentic friends", TEXT, 700], [" · Reading Jack & Jill 0:12", MUTED]]),
+    say(x0, hint, [["←→ tabs · ↑↓ move · enter opens it, or stops a send", MUTED]]),
   ].join("\n");
-  fs.writeFileSync(`${OUT}/truth.svg`, terminal(W, H, "The truth check: a draft saying a team of 20 is blocked because the resume says 6, and the corrected draft is sent.", t1.def + t2.def, body));
+  fs.writeFileSync(`${OUT}/app.svg`, terminal(W, H, "The Sellme app: the Inbox with what needs you, two messages going out, and one flying to Standout.", "", body));
+}
+
+// ---------- the truth check, on the real draft card: a number your facts don't back is caught, fixed, then sold
+{
+  const W = 1000, D = 10, cw = 9.6, x0 = 34, lh = 26, pad = 14;
+  const asked = "How big was the team you managed at Acme?", bad = "I managed a team of 20 engineers at Acme.", good = "I managed a team of 6 engineers at Acme.";
+  const bw = bad.length * cw + 2 * pad;
+  let y = 84;
+  const at = (gap = 0) => { y += gap; const v = y; y += lh; return v; };
+  const head = at(), who = at(lh * 0.4), q = at(lh * 0.5), label = at(lh * 0.9), d = at(lh * 0.5), check = at(lh * 0.6), menu = at(lh * 0.2), hint = at(), done = at(lh * 0.3);
+  const H = y + 4;
+  const qx = x0 + 2 * cw, dx = W - 34 - bw;
+  const bubble = (x, by, w, stroke) => `<rect x="${x}" y="${by - 19}" width="${w}" height="${lh + 2}" rx="9" fill="none" stroke="${stroke}" stroke-width="1.4">`;
+  const CAUGHT = 0.25, EDIT = 0.5, FIXED = 0.66, SOLD = 0.8;
+  const t1 = typed("t1", dx + pad, d, bad.length, cw, 0.04, 0.22, D);
+  const t2 = typed("t2", dx + pad, d, good.length, cw, EDIT + 0.02, FIXED - 0.02, D);
+  const keys = (items) => items.flatMap(([k, l], i) => [[i ? "    " : "", TEXT], [`[${k}]`, LIME, 700], [` ${l}`, TEXT]]);
+  const press = (when) => `<g opacity="0"><rect x="${x0 + 1.6 * cw}" y="${menu - 18}" width="${3.4 * cw}" height="24" rx="5" fill="${LIME}" fill-opacity="0.25"/>${shownAt(when - 0.05, when, D)}</g>`;
+  const body = [
+    say(x0, head, [["1 of 3  ", MUTED], ["Fonzi", TEXT, 700], ["  by its app", MUTED]]),
+    say(qx, who, [["Fonzi", TEXT, 700]]),
+    `${bubble(qx - pad + 6, q, asked.length * cw + 2 * pad, MUTED)}</rect>`,
+    say(qx + 6, q, [[asked, TEXT]]),
+    `<g opacity="0">${say(dx + bw, label, [["Draft · flagged", RED]], ' text-anchor="end"')}${shownAt(CAUGHT, FIXED, D)}</g>`,
+    `<g opacity="0">${say(dx + bw, label, [["Your reply", MUTED]], ' text-anchor="end"')}${shownAt(FIXED, 1, D)}</g>`,
+    `${bubble(dx, d, bw, MUTED)}<animate attributeName="stroke" values="${MUTED};${RED};${LIME}" keyTimes="0;${CAUGHT};${FIXED}" calcMode="discrete" dur="${D}s" repeatCount="indefinite"/></rect>`,
+    `<g><text x="${dx + pad}" y="${d}" xml:space="preserve" fill="${TEXT}" ${t1.use}>I managed a team of <tspan font-weight="700">20${fillAt(TEXT, RED, CAUGHT, 1, D)}</tspan> engineers at Acme.</text>${shownAt(0, EDIT, D)}</g>`,
+    `<g opacity="0"><text x="${dx + pad}" y="${d}" xml:space="preserve" fill="${TEXT}" ${t2.use}>I managed a team of <tspan fill="${LIME}" font-weight="700">6</tspan> engineers at Acme.</text>${shownAt(EDIT, 1, D)}</g>`,
+    `<g opacity="0">${say(qx, check, [["✗ “20” isn’t in your facts.", RED]])}${shownAt(CAUGHT, EDIT, D)}</g>`,
+    `<g opacity="0">${say(x0, menu, [["❯ ", LIME], ...keys([["e", "Edit it"], ["y", "Send anyway"], ["c", "Copy draft"], ["d", "Discuss with SELLME"], ["s", "Skip"]])])}${shownAt(CAUGHT, FIXED, D)}</g>`,
+    press(EDIT),
+    `<g opacity="0">${say(x0, menu, [["❯ ", LIME], ...keys([["y", "Sell me!"], ["e", "Edit"], ["c", "Copy draft"], ["d", "Discuss with SELLME"], ["s", "Skip"]])])}${shownAt(FIXED, 1, D)}</g>`,
+    press(SOLD),
+    say(x0, hint, [["a letter, enter or a click to choose · esc back", MUTED]]),
+    `<g opacity="0">${say(x0, done, [["✓", LIME], [" Sold you to Fonzi.", TEXT, 700]])}${shownAt(SOLD, 1, D)}</g>`,
+  ].join("\n");
+  fs.writeFileSync(`${OUT}/truth.svg`, terminal(W, H, "The truth check on a draft card: a reply saying a team of 20 is flagged because 20 isn't in your facts, edited to 6, then sold to Fonzi.", t1.def + t2.def, body));
 }
 
 // ---------- the timeline: every role as a strip of days, the stuck one glowing hotter until it's nudged
@@ -222,6 +214,7 @@ const tabs = (active) => ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"].map
   let y = 84;
   const rows = [];
   const head = y; y += lh;
+  const spark = y; y += lh - 4;
   const axis = y; y += lh + 4;
   const reveal = `<clipPath id="reveal"><rect x="${sx}" y="0" height="1000" width="0"><animate attributeName="width" values="0;${(past + 1 + ahead) * cw};${(past + 1 + ahead) * cw}" keyTimes="0;0.22;1" dur="${D}s" repeatCount="indefinite"/></rect></clipPath>`;
   for (const r of roles) {
@@ -260,6 +253,7 @@ const tabs = (active) => ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"].map
   const body = [
     `<g>${say(x0, head, [["Timeline  ", TEXT, 700], ["1 stuck", RED], [" · ", MUTED], ["1 on you", VIOLET], [" · ", MUTED], ["1 call ahead", LIME], [" · ", MUTED], ["1 moving", TEXT]])}${shownAt(0, NUDGE, D)}</g>`,
     `<g opacity="0">${say(x0, head, [["Timeline  ", TEXT, 700], ["nothing stuck", LIME], [" · ", MUTED], ["1 on you", VIOLET], [" · ", MUTED], ["1 call ahead", LIME], [" · ", MUTED], ["2 moving", TEXT]])}${shownAt(NUDGE, 1, D)}</g>`,
+    (() => { const n = [...Array(past)].map((_, i) => roles.filter((r) => r.marks[i]).length), top = Math.max(...n); return n.map((k, i) => (k ? `<text x="${sx + i * cw}" y="${spark}" fill="${rgb(heatColor((1 - k / top) * 0.9))}">${"▁▂▃▄▅▆▇█"[Math.min(Math.floor((k / top) * 8), 7)]}</text>` : "")).join(""); })(),
     `<text x="${sx}" y="${axis}" fill="${MUTED}" xml:space="preserve">4 weeks ago${" ".repeat(past - 11 - 5)}today${" ".repeat(4)}next week</text>`,
     ...rows,
     `<text x="${x0}" y="${foot}" xml:space="preserve" fill="${MUTED}">◆ they wrote  ● you sent  ◇ stage  ▲ call  ░▒▓█ silence, hotter past when they usually answer</text>`,
@@ -291,7 +285,7 @@ const tabs = (active) => ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"].map
   ];
   const body = [
     say(x0, head, tabs("Chat")),
-    say(x0, sum, [["Getting you hired: 1 call ahead, 3 talking · nothing needs you", MUTED]]),
+    say(x0, sum, [["Selling you: 1 interview, 4 talking · nothing needs you · checked 8:02 AM", MUTED]]),
     say(x0 + 2 * cw, q1, [["You", TEXT, 700]]),
     say(x0 + 2 * cw, q1t, [["Anything new from Jack & Jill?", TEXT]]),
     say(x0 + 2 * cw, a1, [["SELLME", LIME, 700]]),
@@ -301,9 +295,9 @@ const tabs = (active) => ["Inbox", "Pipeline", "Chat", "Agents", "Schedule"].map
     ...answer.map(([ly, parts, d]) => `<g opacity="0">${say(x0 + 2 * cw, ly, parts)}${shownAt(ANSWER + d, 1, D)}</g>`),
     `<g>${say(x0, input, [["You: ", LIME, 700]])}${shownAt(0, ASK, D)}</g>`,
     `<text x="${x0 + 5 * cw}" y="${input}" xml:space="preserve" fill="${TEXT}" ${tq.use}>${esc(question)}${shownAt(0, ASK, D)}</text>`,
-    `<g opacity="0">${spinner(x0, input)}${say(x0 + 2 * cw, input, [["SELLME is thinking", TEXT, 700], [" · ↑↓ to scroll · esc to stop", MUTED]])}${shownAt(ASK, ANSWER, D)}</g>`,
+    `<g opacity="0">${spinner(x0, input)}${say(x0 + 2 * cw, input, [["SELLME is thinking", TEXT, 700], [" · ↑↓ scroll · ← → other tabs, the answer waits here · esc to stop", MUTED]])}${shownAt(ASK, ANSWER, D)}</g>`,
     `<g opacity="0">${say(x0, input, [["You: ", LIME, 700]])}<rect x="${x0 + 5 * cw}" y="${input - 15}" width="${cw}" height="19" fill="${TEXT}"><animate attributeName="opacity" values="1;0" dur="1s" calcMode="discrete" repeatCount="indefinite"/></rect>${shownAt(ANSWER + 0.15, 1, D)}</g>`,
-    say(x0, hint, [["enter to send · / for commands · ↑↓ to scroll · ← → tabs · esc back", MUTED]]),
+    ...[[0, ASK], [ANSWER + 0.15, 1]].map(([a, b]) => `<g${a ? ' opacity="0"' : ""}>${say(x0, hint, [["enter to send · / for commands · ↑↓ to scroll · ← → tabs · esc back", MUTED]])}${shownAt(a, b, D)}</g>`), // Thinking replaces it, as in the app.
   ].join("\n");
   fs.writeFileSync(`${OUT}/chat.svg`, terminal(W, H, "The Chat tab: you ask which call to prep for, SELLME thinks, then answers from your pipeline and your own facts.", tq.def, body));
 }
