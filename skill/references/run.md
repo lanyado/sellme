@@ -61,7 +61,7 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 | An update, such as an interview confirmed | `role set` (or `role add` if the company isn't in the pipeline yet), and `note` it |
 | Another agent submitted the user for a role, or the user chose which one should | `role set <id> --agent "<that agent>"`, so the check stops warning that the role is in process elsewhere |
 | A rejection | `role set <id> --stage rejected` (or `role add --stage rejected`), and `note` it. Don't reply. |
-| A call booked, moved or cancelled | `role set <id> --next-call "<ISO date and time>"` or `--next-call none`, and `note` it |
+| A call booked, moved or cancelled | `role set <id> --next-call "<ISO date and time>" --call-via "<Zoom, Meet, Teams, Phone or In person>"` or `--next-call none`, and `note` it |
 | A thread where the last word is theirs and they're waiting on the user | `draft` the follow-up, or `block` it if the facts don't answer it |
 | A pitch for a company marked rejected or passed | `note` that you skipped it, and why. Don't reply. |
 | A person pitching a company that's already in process through someone else | `draft` a reply saying so, with `--company`, which flags the other channel. Don't answer their application questions unless the user chooses that route. A second submission can cause a conflict. |
@@ -89,7 +89,7 @@ Push for interviews. When an agent offers matches or intros, say yes to every on
 | A live update about a company marked passed, or the user's current employer | `alert`, and leave its stage alone. Mentioning their search there could hurt them. |
 | A question about the user's work at their current employer | Answer it normally if sourced, without naming the employer. No alert needed. |
 
-**Next calls.** For each role in `talking` or `interview`, find the next call with that company, in the user's calendar if you have it and in their threads. Record it with `{{SELLME}} role set <id> --next-call "<ISO date and time>" --call-via "<Zoom, Meet, Teams, Phone or In person>"`, the format from the invite or the thread (leave `--call-via` out if it doesn't say), or take it off with `--next-call none` if it was cancelled. Use only a real calendar event or a time both sides confirmed, never a proposed one.
+**Next calls.** For each role in `talking` or `interview`, find the next call with that company, in the user's calendar if you have it and in their threads. Record it with `{{SELLME}} role set <id> --next-call "<ISO date and time>" --call-via "<Zoom, Meet, Teams, Phone or In person>"`, the format from the invite or the thread (leave `--call-via` out if it doesn't say). A call `role list` shows with `via ?` is missing its format: read its invite again and set the same time with `--call-via`. Or take it off with `--next-call none` if it was cancelled. Use only a real calendar event or a time both sides confirmed, never a proposed one.
 
 **Stay a minute with agents that answer fast.** Bots on a site, in their own app or by text (Jack & Jill, Dex, Standout and the like) usually answer within a minute. After you send one a message in this run, run `{{SELLME}} wait 45`, read that conversation again, and handle the answer right there, the same way as everything else. Do it up to three rounds per agent per run, and only while they keep answering. Never for a person or for email, and never just to keep a chat going: the autopilot's daily limit still holds.
 
