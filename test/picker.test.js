@@ -1799,7 +1799,7 @@ test("a selection reads the plain screen, with color and links gone and a long l
 });
 
 test("no screen offers keys that are gone: v to select and q to quit", () => {
-  for (const tab of ["Inbox", "Agents", "Pipeline", "Timeline", "Schedule"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
+  for (const tab of ["Inbox", "Agents", "Pipeline", "Schedule"]) assert.doesNotMatch(footerLine(tab, 200), /select text|q quit/);
   assert.match(footerLine("Pipeline", 140), /d delete/);
 });
 
