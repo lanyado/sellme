@@ -31,7 +31,7 @@ test("the chat is given what's on record for the name asked about, and only the 
   assert.doesNotMatch(prompt, /987K/);
   assert.match(prompt, /Never list their other processes/);
   assert.match(prompt, /Never guess a status/);
-  assert.match(prompt, /it goes to their Inbox as its own draft[\s\S]*Nothing else is sent or changed from here/);
+  assert.match(prompt, /it goes to their Inbox as its own draft[\s\S]*Nothing else is sent from here/);
   assert.doesNotMatch(prompt, /Look it up before you answer/, "the plain tool isn't told to search");
   const looked = talkPrompt(s, [{ who: "you", text: "what is the status with HP?" }], { research: true });
   assert.match(looked, /nothing found under that name/, "no HP on record says so, instead of letting it guess");
@@ -73,6 +73,10 @@ test("/copy gets just the answer to paste, not SELLME's lead-in, and it's still 
   const reply = parseTalk(JSON.stringify({ say: `Here's a 136-character answer:\n${answer}`, copy: answer }), s);
   assert.equal(reply.copy, answer);
   assert.match(talkPrompt(s, []), /"copy": "the exact text to paste, or null"/);
+  const prompt = talkPrompt(s, []);
+  assert.doesNotMatch(prompt, /sent or changed from here/, "what they tell it is saved, so it never says it can't change things");
+  assert.match(prompt, /every draft uses it from then on/);
+  assert.match(prompt, /starts with \/remember/);
   assert.equal(parseTalk('{"say": "Northwind is next."}', s).copy, null, "a plain answer has nothing set apart, so /copy takes all of it");
   assert.equal(parseTalk('{"say": "Hi", "copy": "  "}', s).copy, null);
   saveChat(s, [{ who: "you", text: "What are you proud of?" }, { who: "sellme", text: reply.say, copy: reply.copy }]);

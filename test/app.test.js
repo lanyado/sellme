@@ -73,3 +73,19 @@ test("pasting several lines into Chat keeps them all in the message, and only en
   await app.close();
   assert.equal(sent[0]?.text, "first line\nsecond line\nthird", app.out.slice(-1500));
 });
+
+test("/remember saves what follows as a fact, even with no AI tool to answer", { skip: NO_PTY }, async () => {
+  const app = openApp();
+  await app.until("[Inbox]");
+  app.type("\x1b[C");
+  await app.until("[Pipeline]");
+  app.type("\x1b[C");
+  await app.until("You:");
+  app.type("/remember\r");
+  await app.until("Type what to remember after it");
+  app.type("/remember My email is now maya@example.com\r");
+  await app.until("Saved as a fact");
+  const facts = app.saved().facts.map((f) => f.text);
+  await app.close();
+  assert.ok(facts.includes("My email is now maya@example.com"), `${facts}\n${app.out.slice(-1500)}`);
+});
