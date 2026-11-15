@@ -25,10 +25,15 @@ test("the app opens and every tab draws without crashing", { skip: process.platf
   child.stderr.on("data", (d) => (out += d));
   const closed = new Promise((resolve) => child.on("close", resolve));
   const pause = (ms) => new Promise((r) => setTimeout(r, ms));
-  await pause(2500);
-  for (let i = 0; i < 4; i++) {
-    child.stdin.write("\x1b[C"); // → to the next tab: Pipeline, Chat, Agents, Schedule.
-    await pause(800);
+  // Waits for a tab to draw (or a crash), however slow the machine, rather than for a fixed time.
+  const drawn = async (tab) => {
+    for (let waited = 0; waited < 15_000 && !out.includes(`[${tab}]`) && !/Error/.test(out); waited += 100) await pause(100);
+    await pause(300); // Let it finish drawing and start reading keys.
+  };
+  await drawn("Inbox");
+  for (const tab of ["Pipeline", "Chat", "Agents", "Schedule"]) {
+    child.stdin.write("\x1b[C"); // → to the next tab.
+    await drawn(tab);
   }
   child.stdin.write("\x1b");
   const done = await Promise.race([closed, pause(8000).then(() => "timeout")]);
