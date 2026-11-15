@@ -56,7 +56,7 @@ test("names are found whole and short ones too, and filler words match nothing",
 test("an answer comes back with what to remember, and the chat is kept for next time", async () => {
   const { s } = search();
   const out = await talkTurn(s, [], { tool: { id: "claude" }, run: async () => '{"say": "Prep for Northwind.\\\\nThen nudge Dex.", "remember": ["Prefers remote Fridays"]}' });
-  assert.deepEqual(out, { say: "Prep for Northwind.\nThen nudge Dex.", remember: ["Prefers remote Fridays"], drafts: [] });
+  assert.deepEqual(out, { say: "Prep for Northwind.\nThen nudge Dex.", copy: null, remember: ["Prefers remote Fridays"], drafts: [] });
   assert.match(parseTalk("nope").refused, /form I could read/);
   const asked = parseTalk('{"say": "Done, it\'s in Drafts.", "drafts": [{"to": "Dex", "text": "Thanks for today. I really enjoyed it.", "kind": "thanks", "company": "Northwind"}, {"to": "Nobody Known", "text": "Hi"}]}', s);
   assert.deepEqual(asked.drafts, [{ to: "Dex", text: "Thanks for today. I really enjoyed it.", sources: [], kind: "thanks", company: "Northwind" }], "a message the user asked for, to their own contacts only");
@@ -65,6 +65,19 @@ test("an answer comes back with what to remember, and the chat is kept for next 
   saveChat(s, [...history, { who: "sellme", text: "Stopped.", note: true }]);
   assert.equal(s.chat.length, 40);
   assert.equal(s.chat.at(-1).text, "m49", "notes to the user aren't kept");
+});
+
+test("/copy gets just the answer to paste, not SELLME's lead-in, and it's still there next time", () => {
+  const { s } = search();
+  const answer = "An agentic supplier communication system for global manufacturers handling billions in POs. An eval loop took accuracy from 60% to 98%.";
+  const reply = parseTalk(JSON.stringify({ say: `Here's a 136-character answer:\n${answer}`, copy: answer }), s);
+  assert.equal(reply.copy, answer);
+  assert.match(talkPrompt(s, []), /"copy": "the exact text to paste, or null"/);
+  assert.equal(parseTalk('{"say": "Northwind is next."}', s).copy, null, "a plain answer has nothing set apart, so /copy takes all of it");
+  assert.equal(parseTalk('{"say": "Hi", "copy": "  "}', s).copy, null);
+  saveChat(s, [{ who: "you", text: "What are you proud of?" }, { who: "sellme", text: reply.say, copy: reply.copy }]);
+  assert.equal(s.chat.at(-1).copy, answer);
+  assert.equal("copy" in s.chat[0], false);
 });
 
 test("the tabs go Inbox, Pipeline, Chat, Agents, Schedule", () => {
@@ -129,7 +142,7 @@ test("typing / in Chat suggests its commands, narrowing as it's typed", async ()
   const { CHAT_COMMANDS, readChat, slashMatches } = await import("../lib/app.js");
   const { palette } = await import("../lib/render.js");
   assert.deepEqual(slashMatches("/").map((x) => x.name), CHAT_COMMANDS.map((x) => x.name));
-  assert.deepEqual(slashMatches("/c").map((x) => x.name), ["/clear", "/check"]);
+  assert.deepEqual(slashMatches("/c").map((x) => x.name), ["/clear", "/check", "/copy"]);
   assert.deepEqual(slashMatches("/CH").map((x) => x.name), ["/check"]);
   assert.deepEqual(slashMatches("/nope"), []);
   assert.equal(slashMatches("hi /clear"), null, "only at the start");
